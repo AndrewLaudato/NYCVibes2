@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>NYC Vibes JS</title>
+    <link rel="icon" type="image/png" href="static/favicon.png">
     <script src="https://unpkg.com/kaboom@3000/dist/kaboom.js"></script>
     <script src="constants.js"></script>
     <style>
@@ -176,10 +177,19 @@ scene("start", () => {
 scene("game", () => {
     console.log("Game scene loaded!"); // Debug log to verify scene transition
 
-    let music = play("bgm", {
-        volume: 0.5,
-        loop: true,
-    });
+    // Music instance tracking
+    let music = null;
+
+    function playMusic(track) {
+        if (music) music.stop();
+        music = play(track, {
+            volume: 0.5,
+            loop: true,
+        });
+    }
+
+    // Start background music
+    playMusic("bgm");
 
     // Map background
     add([
@@ -286,6 +296,27 @@ scene("game", () => {
         z(100),
     ]);
 
+    // Inventory label (declare in main scope)
+    let inventoryLabel = add([
+        text("Inventory: " + gameState.inventory.join(", "), {
+            size: 24,
+            font: "Arial"
+        }),
+        pos(20, 90),
+        color(255, 255, 255),
+        fixed(),
+        z(100),
+        "inventoryLabel"
+    ]);
+
+    // Function to update inventory label
+    function updateInventoryLabel() {
+        inventoryLabel.text = "Inventory: " + gameState.inventory.join(", ");
+    }
+
+    // Call initially
+    updateInventoryLabel();
+
     // Update distance in onUpdate
     let lastPos = player.pos.clone();
     onUpdate(() => {
@@ -378,18 +409,16 @@ scene("game", () => {
         return obj;
     }
 
-    // Helper function to spawn an item near the center of the map
-    function spawnNearCenter(itemName, points) {
-        // Center with a small random offset
+    // Only spawn dog and coffee near center, not on player
+    function spawnDogNearCenterNotOnPlayer() {
         const offset = 100;
-        const x = (mapWidth / 2) + rand(-offset, offset);
-        const y = (mapHeight / 2) + rand(-offset, offset);
-        return spawnItem(itemName, points, { x, y });
-    }
-
-    // Modified dog spawn logic
-    function spawnDog() {
-        const dog = spawnItem("dog", 4);
+        let x = (mapWidth / 2) + rand(-offset, offset);
+        let y = (mapHeight / 2) + rand(-offset, offset);
+        while (Math.abs(x - mapWidth/2) < 40 && Math.abs(y - mapHeight/2) < 40) {
+            x = (mapWidth / 2) + rand(-offset, offset);
+            y = (mapHeight / 2) + rand(-offset, offset);
+        }
+        const dog = spawnItem("dog", 4, { x, y });
         if (dog) {
             wait(DOG_POOP_TIMER, () => {
                 if (dog.exists()) {
@@ -401,151 +430,25 @@ scene("game", () => {
         }
     }
 
-    // Modified devil spawn check
-    onUpdate(() => {
-        const now = time();
-        const gameTime = now - gameStartTime;
-        
-        // Only check for devil spawn after 30 seconds
-        if (gameTime < 30) return;
-        
-        // Show warning before devil spawn
-        if (!gameState.devil && !gameState.devilDisabled && 
-            now - gameState.lastDevilSpawn > DEVIL_MIN_INTERVAL - DEVIL_WARNING_DURATION && 
-            now - gameState.lastDevilSpawn < DEVIL_MIN_INTERVAL && 
-            Math.random() < DEVIL_SPAWN_CHANCE) {
-            
-            warningIndicator.hidden = false;
-            warningIndicator.opacity = 1;
-            
-            // Flash warning
-            loop(0.1, () => {
-                warningIndicator.opacity = warningIndicator.opacity === 1 ? 0.5 : 1;
-            });
-            
-            // Hide warning after duration
-            wait(DEVIL_WARNING_DURATION, () => {
-                warningIndicator.hidden = true;
-                warningIndicator.opacity = 1;
-            });
+    // Generic version for other items (like coffee)
+    function spawnNearCenterNotOnPlayer(itemName, points) {
+        const offset = 100;
+        let x = (mapWidth / 2) + rand(-offset, offset);
+        let y = (mapHeight / 2) + rand(-offset, offset);
+        while (Math.abs(x - mapWidth/2) < 40 && Math.abs(y - mapHeight/2) < 40) {
+            x = (mapWidth / 2) + rand(-offset, offset);
+            y = (mapHeight / 2) + rand(-offset, offset);
         }
-        
-        // Rest of devil spawn logic...
-        if (!gameState.devil && !gameState.devilDisabled && 
-            now - gameState.lastDevilSpawn > DEVIL_MIN_INTERVAL && 
-            Math.random() < DEVIL_SPAWN_CHANCE) {
-            
-            // Spawn devil
-            gameState.devil = add([
-                sprite("devil", { width: 64, height: 64 }),
-                pos(rand(0, mapWidth - 100), rand(0, mapHeight - 100)),
-                area(),
-                z(1),
-                "devil",
-            ]);
+        return spawnItem(itemName, points, { x, y });
+    }
 
-            gameState.devilSpawnedAt = now;
-            gameState.lastDevilSpawn = now;
+    spawnDogNearCenterNotOnPlayer();
+    spawnNearCenterNotOnPlayer("coffee", 5);
 
-            // Play dark music
-            gameState.devilMusic = play("dark", {
-                volume: 0.5,
-                loop: true,
-            });
-        }
-
-        // Update devil movement
-        if (gameState.devil) {
-            // Calculate direction to player
-            const dx = player.pos.x - gameState.devil.pos.x;
-            const dy = player.pos.y - gameState.devil.pos.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            
-            if (dist > 0) {
-                // Move devil towards player at DEVIL_SPEED
-                const moveX = (dx / dist) * DEVIL_SPEED;
-                const moveY = (dy / dist) * DEVIL_SPEED;
-                gameState.devil.move(moveX, moveY);
-            }
-
-            // Check collision with player
-            if (gameState.devil.isColliding(player)) {
-                if (gameState.inventory.includes("grenade")) {
-                    // Use grenade
-                    gameState.inventory = gameState.inventory.filter(item => item !== "grenade");
-                    
-                    // Flash effect
-                    add([
-                        rect(width(), height()),
-                        pos(0, 0),
-                        color(255, 255, 255),
-                        fixed(),
-                        z(102),
-                        lifespan(0.5),
-                    ]);
-
-                    play("boom");
-                    destroy(gameState.devil);
-                    gameState.devil = null;
-                    gameState.devilDisabled = true;
-                    
-                    // Stop devil music
-                    if (gameState.devilMusic) {
-                        gameState.devilMusic.stop();
-                    }
-                    
-                    // Restore normal music
-                    play("bgm", {
-                        volume: 0.5,
-                        loop: true,
-                    });
-                } else {
-                    // Player caught by devil
-                    gameState.vibes -= DEVIL_VIBES_PENALTY;
-                    updateVibesDisplay();
-                    play("negative");
-                    
-                    destroy(gameState.devil);
-                    gameState.devil = null;
-                    
-                    // Stop devil music
-                    if (gameState.devilMusic) {
-                        gameState.devilMusic.stop();
-                    }
-                    
-                    // Restore normal music
-                    play("bgm", {
-                        volume: 0.5,
-                        loop: true,
-                    });
-                }
-            }
-
-            // Check devil lifespan
-            if (now - gameState.devilSpawnedAt > DEVIL_LIFESPAN) {
-                destroy(gameState.devil);
-                gameState.devil = null;
-                
-                // Stop devil music
-                if (gameState.devilMusic) {
-                    gameState.devilMusic.stop();
-                }
-                
-                // Restore normal music
-                play("bgm", {
-                    volume: 0.5,
-                    loop: true,
-                });
-            }
-        }
+    // Delay all other random spawns until after a short wait (e.g., 2 seconds)
+    wait(2, () => {
+        spawnRandomly();
     });
-
-    // Modified initial spawns with more items
-    spawnNearCenter("dog", 4);
-    spawnNearCenter("coffee", 5);
-    spawnNearCenter("pizza", 5);
-    spawnNearCenter("pretzel", 4);
-    spawnRandomly();
 
     // ===== Collisions =====
 
@@ -597,7 +500,7 @@ scene("game", () => {
         } else if (obj.itemName === "grenade") {
             if (!gameState.inventory.includes("grenade")) {
                 gameState.inventory.push("grenade");
-                inventoryLabel.text = "Inventory: " + gameState.inventory.join(", ");
+                updateInventoryLabel();
                 add([
                     text("Grenade ready!", { size: 24 }),
                     pos(center().x, height() - 100),
@@ -611,7 +514,7 @@ scene("game", () => {
         } else if (obj.itemName === "museum") {
             if (!gameState.inventory.includes("map")) {
                 gameState.inventory.push("map");
-                inventoryLabel.text = "Inventory: " + gameState.inventory.join(", ");
+                updateInventoryLabel();
                 add([
                     text("Map acquired!", { size: 24 }),
                     pos(center().x, height() - 100),
