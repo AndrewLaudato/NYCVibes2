@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>NYC Vibes JS</title>
     <script src="https://unpkg.com/kaboom@3000/dist/kaboom.js"></script>
+    <script src="constants.js"></script>
     <style>
         body {
             margin: 0;
@@ -27,37 +28,6 @@ console.log("Script started!"); // Debug log to verify script execution
 // ================================
 // 0. GAME CONSTANTS
 // ================================
-
-const mapWidth = 2400;
-const mapHeight = 1800;
-const INITIAL_VIBES = 10;
-const WIN_VIBES = 50;
-const LOSE_VIBES = 0;
-const SUN_DURATION = 10; // seconds
-const EDIBLE_DURATION = 5; // seconds
-const DEVIL_WARNING_DURATION = 3; // seconds
-const DEVIL_MIN_INTERVAL = 10; // seconds
-const DEVIL_LIFESPAN = 10; // seconds
-const DEVIL_SPAWN_CHANCE = 0.25;
-const DEVIL_VIBES_PENALTY = 15;
-const GRENADE_SPAWN_DELAY = 15; // seconds
-const DOG_POOP_TIMER = 5; // seconds
-const ITEM_SPAWN_INTERVAL_MIN = 0.5; // seconds
-const ITEM_SPAWN_INTERVAL_MAX = 2; // seconds
-const BLOCK_SIZE_NS = 1/20; // North-South blocks are 1/20th mile
-const BLOCK_SIZE_EW = 1/5;  // East-West blocks are 1/5th mile
-const UI_FONT_SIZE = 16;
-const UI_COLOR = [30, 30, 30, 200]; // Dark semi-transparent
-const UI_BG_COLOR = [255, 255, 255, 150]; // Light semi-transparent
-const UI_PADDING = 4;
-const DEVIL_SPEED = 300; // Increased from 2 to be faster than player (player speed is 240)
-const SUN_COLOR = [255, 255, 180, 100]; // Yellow tint with alpha
-const EDIBLE_COLORS = [
-    [255, 100, 100, 90], // Red tint
-    [100, 255, 100, 90], // Green tint
-    [100, 100, 255, 90], // Blue tint
-    [255, 100, 255, 90], // Purple tint
-];
 
 // ================================
 // 1. INITIALIZE GAME
@@ -245,58 +215,59 @@ scene("game", () => {
 
     // Create UI container with proper transparency
     const uiContainer = add([
-        rect(width(), 100), // Increased height for better visibility
+        rect(width(), 120),
         pos(0, 0),
-        color(0, 0, 0, 0.8), // More opaque background
+        color(0, 0, 0, 0.7),
         fixed(),
         z(99),
     ]);
 
-    // Vibes tracking
+    // Vibes tracking with enhanced visibility
     const vibesLabel = add([
         text(`Vibes: ${gameState.vibes}`, { 
-            size: 24, // Increased size
-            font: "sans-serif"
+            size: 30, // Slightly smaller
+            font: "Arial",
+            width: width() / 3,
         }),
-        pos(20, 20), // Adjusted position
+        pos(20, 50), // Move further down
         color(255, 255, 255),
         fixed(),
         z(100),
+        "vibesLabel"
     ]);
 
-    // Inventory
-    const inventoryLabel = add([
-        text("Inventory: " + gameState.inventory.join(", "), { 
-            size: 24, // Increased size
-            font: "sans-serif"
-        }),
-        pos(20, 50), // Adjusted position
-        color(255, 255, 255),
-        fixed(),
-        z(100),
-    ]);
+    // Function to update vibes label
+    function updateVibesDisplay() {
+        vibesLabel.text = `Vibes: ${gameState.vibes}`;
+        vibesLabel.color = gameState.vibes >= WIN_VIBES ? [0, 255, 0] :
+                            gameState.vibes <= LOSE_VIBES ? [255, 0, 0] :
+                            [255, 255, 255];
+    }
 
-    // Distance tracking
+    // Call initially
+    updateVibesDisplay();
+
+    // Miles (distance) in top right
     let distanceWalked = 0;
     const distanceLabel = add([
-        text("Distance: 0.0 miles", { 
-            size: 24, // Increased size
-            font: "sans-serif"
+        text("Miles: 0.0", { 
+            size: 24,
+            font: "Arial"
         }),
-        pos(width() - 250, 20), // Adjusted position
+        pos(width() - 220, 20),
         color(255, 255, 255),
         fixed(),
         z(100),
     ]);
 
-    // Time tracking
+    // Time tracking with enhanced visibility
     let startTime = time();
     const timeLabel = add([
         text("Time: 0:00", { 
-            size: 24, // Increased size
+            size: 24,
             font: "sans-serif"
         }),
-        pos(width() - 250, 50), // Adjusted position
+        pos(width() - 250, 60),
         color(255, 255, 255),
         fixed(),
         z(100),
@@ -305,7 +276,7 @@ scene("game", () => {
     // Add a title at the top
     const titleLabel = add([
         text("NYC Vibes", { 
-            size: 36, // Increased size
+            size: 36,
             font: "sans-serif"
         }),
         pos(center().x, 20),
@@ -315,20 +286,16 @@ scene("game", () => {
         z(100),
     ]);
 
-    // Track player movement for distance
+    // Update distance in onUpdate
     let lastPos = player.pos.clone();
     onUpdate(() => {
-        // Update distance
         const dx = Math.abs(player.pos.x - lastPos.x);
         const dy = Math.abs(player.pos.y - lastPos.y);
-        
-        // Convert pixels to miles
         const milesX = (dx / mapWidth) * (mapWidth * BLOCK_SIZE_EW);
         const milesY = (dy / mapHeight) * (mapHeight * BLOCK_SIZE_NS);
         const totalMiles = Math.sqrt(milesX * milesX + milesY * milesY);
-        
         distanceWalked += totalMiles;
-        distanceLabel.text = `Distance: ${distanceWalked.toFixed(1)} miles`;
+        distanceLabel.text = `Miles: ${distanceWalked.toFixed(1)}`;
         lastPos = player.pos.clone();
 
         // Update time
@@ -382,15 +349,13 @@ scene("game", () => {
     function spawnRandomItem() {
         const now = time();
         const elapsed = now - gameStartTime;
-        
-        // Special grenade spawn logic - only once per game
-        if (!grenadeSpawned && elapsed >= GRENADE_SPAWN_DELAY) {
+        // Special grenade spawn logic - only once per game, 30% chance
+        if (!grenadeSpawned && elapsed >= GRENADE_SPAWN_DELAY && Math.random() < 0.3) {
             grenadeSpawned = true;
             return { name: "grenade", points: 0 };
         }
-        
         // Regular item spawn
-        return choose(itemsToSpawn);
+        return choose(itemsToSpawn.filter(item => item.name !== "grenade"));
     }
 
     // Helper function to spawn an item at a given position
@@ -426,9 +391,8 @@ scene("game", () => {
     function spawnDog() {
         const dog = spawnItem("dog", 4);
         if (dog) {
-            // Schedule poop transformation
             wait(DOG_POOP_TIMER, () => {
-                if (dog.exists()) { // Check if dog still exists (not collected)
+                if (dog.exists()) {
                     const poopPos = dog.pos.clone();
                     destroy(dog);
                     spawnItem("poop", -5, poopPos);
@@ -440,6 +404,10 @@ scene("game", () => {
     // Modified devil spawn check
     onUpdate(() => {
         const now = time();
+        const gameTime = now - gameStartTime;
+        
+        // Only check for devil spawn after 30 seconds
+        if (gameTime < 30) return;
         
         // Show warning before devil spawn
         if (!gameState.devil && !gameState.devilDisabled && 
@@ -505,7 +473,6 @@ scene("game", () => {
                 if (gameState.inventory.includes("grenade")) {
                     // Use grenade
                     gameState.inventory = gameState.inventory.filter(item => item !== "grenade");
-                    inventoryLabel.text = "Inventory: " + gameState.inventory.join(", ");
                     
                     // Flash effect
                     add([
@@ -535,7 +502,7 @@ scene("game", () => {
                 } else {
                     // Player caught by devil
                     gameState.vibes -= DEVIL_VIBES_PENALTY;
-                    vibesLabel.text = `Vibes: ${gameState.vibes}`;
+                    updateVibesDisplay();
                     play("negative");
                     
                     destroy(gameState.devil);
@@ -573,9 +540,11 @@ scene("game", () => {
         }
     });
 
-    // Modified initial spawns
+    // Modified initial spawns with more items
     spawnNearCenter("dog", 4);
     spawnNearCenter("coffee", 5);
+    spawnNearCenter("pizza", 5);
+    spawnNearCenter("pretzel", 4);
     spawnRandomly();
 
     // ===== Collisions =====
@@ -593,11 +562,7 @@ scene("game", () => {
         }
 
         gameState.vibes += points;
-        // Update vibes label with larger text and better visibility
-        vibesLabel.text = `Vibes: ${gameState.vibes}`;
-        vibesLabel.color = [255, 255, 255];
-        vibesLabel.font = "sans-serif";
-        vibesLabel.size = 24;
+        updateVibesDisplay(); // Update vibes display
 
         if (obj.points > 0) {
             play("positive");
