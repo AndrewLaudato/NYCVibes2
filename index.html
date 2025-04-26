@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>NYC Vibes JS</title>
+    <script src="https://unpkg.com/kaboom@3000/dist/kaboom.js"></script>
+</head>
+<body>
+<script>
+
+// ================================
+// 1. INITIALIZE GAME
+// ================================
+
+kaboom({
+    width: 800,
+    height: 600,
+    background: [0, 0, 0],
+});
+
+// Map size
+const mapWidth = 1600;
+const mapHeight = 1200;
+
+// ================================
+// 2. LOAD ASSETS
+// ================================
+
+loadSprite("start", "static/start_screen.jpg");
+loadSprite("player", "static/KJK.png");
+loadSprite("map", "static/NYCmap.jpg");
+loadSound("bgm", "static/bg_music.mp3");
+loadSound("positive", "static/positive.wav");
+loadSound("negative", "static/negative.wav");
+
+// Item sprites
+const itemSprites = [
+    "dog", "poop", "pizza", "pretzel", "bagels", "coffee",
+    "museum", "tourist", "edible", "grenade", "sun",
+    "construction", "rain", "taxi", "subway"
+];
+for (const spriteName of itemSprites) {
+    loadSprite(spriteName, `static/${spriteName}.png`);
+}
+
+// ================================
+// 3. CUTE MESSAGES
+// ================================
+
+const cuteMessages = {
+    pizza: "Nothing better than NYC pizza! +5",
+    dog: "Who's a good dog? +4",
+    pretzel: "Twist and shout! Pretzel +4",
+    bagels: "Bagels from NYC are unbeatable! +3",
+    coffee: "Fuel for the city grind! +5",
+    poop: "Watch your step! Gross! -5",
+    museum: "Discovered a hidden gem! +5",
+    tourist: "Tourist jam! -4",
+    edible: "Feeling funny... +5",
+    grenade: "Grenade ready! 0",
+    sun: "Sunshine boost activated!",
+    construction: "Detour ahead! -3",
+    rain: "Rainy day blues. -4",
+    taxi: "Caught a cab! +2",
+    subway: "Next stop, fun! +2",
+};
+
+// Master item list
+const itemsToSpawn = [
+    { name: "pizza", points: 5 },
+    { name: "pretzel", points: 4 },
+    { name: "bagels", points: 3 },
+    { name: "coffee", points: 5 },
+    { name: "museum", points: 5 },
+    { name: "tourist", points: -4 },
+    { name: "edible", points: 5 },
+    { name: "grenade", points: 0 },
+    { name: "sun", points: 0 },
+    { name: "construction", points: -3 },
+    { name: "rain", points: -4 },
+    { name: "taxi", points: 2 },
+    { name: "subway", points: 2 },
+];
+
+// ================================
+// 4. START SCREEN
+// ================================
+
+scene("start", () => {
+    add([
+        sprite("start", { width: width(), height: height() }),
+        pos(0, 0),
+    ]);
+
+    add([
+        text("Press any key to start", { size: 24 }),
+        pos(center().x, height() - 50),
+        anchor("center"),
+        color(255, 255, 255),
+    ]);
+
+    onKeyPress(() => {
+        go("game");
+    });
+});
+
+// ================================
+// 5. MAIN GAME SCENE
+// ================================
+
+scene("game", () => {
+
+    let music = play("bgm", {
+        volume: 0.5,
+        loop: true,
+    });
+
+    // Map background
+    add([
+        sprite("map", { width: mapWidth, height: mapHeight }),
+        pos(0, 0),
+        z(-1),
+    ]);
+
+    // Player (spawn dead center)
+    const player = add([
+        sprite("player"),
+        pos(mapWidth / 2, mapHeight / 2),
+        area(),
+        body(),
+        scale(0.15),
+    ]);
+
+    // Popup Text (attached to player position)
+    const popupLabel = add([
+        text("", { size: 20 }),
+        pos(player.pos.add(vec2(0, -70))),
+        anchor("center"),
+        color(30, 30, 120), // dark blue
+    ]);
+
+    popupLabel.hidden = true;
+
+    // Camera follows player
+    onUpdate(() => {
+        camPos(player.pos);
+        popupLabel.pos = player.pos.add(vec2(0, -70)); // always float above player
+    });
+
+    // Score tracking
+    let score = 0;
+    const scoreLabel = add([
+        text("Score: 0"),
+        pos(12, 12),
+        fixed(),
+        { value: 0 },
+    ]);
+
+    // Player movement
+    const speed = 240;
+    onKeyDown("left", () => player.move(-speed, 0));
+    onKeyDown("right", () => player.move(speed, 0));
+    onKeyDown("up", () => player.move(0, -speed));
+    onKeyDown("down", () => player.move(0, speed));
+
+    // Clamp player inside map
+    onUpdate(() => {
+        player.pos.x = clamp(player.pos.x, 0, mapWidth - player.width * player.scale.x);
+        player.pos.y = clamp(player.pos.y, 0, mapHeight - player.height * player.scale.y);
+    });
+
+    // ===== Helper Functions =====
+
+    function spawnItem(name, points, position = null) {
+        add([
+            sprite(name, { width: 64, height: 64 }),
+            pos(position || vec2(rand(50, mapWidth - 100), rand(50, mapHeight - 100))),
+            area(),
+            name,
+            { points: points, itemName: name },
+        ]);
+    }
+
+    function spawnNearCenter(name, points) {
+        let offsetX = rand(-150, 150);
+        let offsetY = rand(-150, 150);
+        while (Math.abs(offsetX) < 50 && Math.abs(offsetY) < 50) {
+            offsetX = rand(-150, 150);
+            offsetY = rand(-150, 150);
+        }
+        const position = vec2(mapWidth / 2 + offsetX, mapHeight / 2 + offsetY);
+        spawnItem(name, points, position);
+    }
+
+    function spawnRandomItem() {
+        const item = choose(itemsToSpawn);
+        spawnItem(item.name, item.points);
+    }
+
+    function spawnRandomly() {
+        spawnRandomItem();
+        wait(rand(1, 4), spawnRandomly);
+    }
+
+    // ===== Start Spawning =====
+
+    spawnNearCenter("dog", 4); // Dog near player
+    spawnNearCenter("coffee", 5); // Coffee near player
+    spawnRandomly();
+
+    // ===== Collisions =====
+
+    player.onCollide((obj) => {
+        if (obj.points === undefined) return;
+
+        destroy(obj);
+        score += obj.points;
+        scoreLabel.text = "Score: " + score;
+
+        if (obj.points > 0) {
+            play("positive");
+        } else if (obj.points < 0) {
+            play("negative");
+        }
+
+        if (obj.itemName && cuteMessages[obj.itemName]) {
+            popupLabel.text = cuteMessages[obj.itemName];
+            popupLabel.hidden = false;
+            wait(2, () => {
+                popupLabel.hidden = true;
+            });
+        }
+    });
+
+    // ===== Lose Condition =====
+
+    onUpdate(() => {
+        if (score <= -20) {
+            add([
+                text("Game Over!", 48),
+                pos(center()),
+                anchor("center"),
+                color(255, 0, 0),
+            ]);
+            destroy(player);
+            music.stop();
+            wait(2, () => {
+                go("lose", { score: score });
+            });
+        }
+    });
+
+});
+
+// ================================
+// 6. LOSE SCREEN
+// ================================
+
+scene("lose", (data) => {
+    add([
+        text("Final Score: " + data.score, 32),
+        pos(center()),
+        anchor("center"),
+    ]);
+
+    add([
+        text("Press any key to restart", { size: 24 }),
+        pos(center().x, height() - 50),
+        anchor("center"),
+        color(255, 255, 255),
+    ]);
+
+    onKeyPress(() => {
+        go("start");
+    });
+});
+
+// ================================
+// 7. START THE GAME
+// ================================
+
+go("start");
+
+</script>
+</body>
+</html>
