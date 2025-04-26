@@ -4,34 +4,96 @@
     <meta charset="UTF-8">
     <title>NYC Vibes JS</title>
     <script src="https://unpkg.com/kaboom@3000/dist/kaboom.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #000;
+        }
+        canvas {
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+    </style>
 </head>
 <body>
 <script>
+console.log("Script started!"); // Debug log to verify script execution
+
+// ================================
+// 0. GAME CONSTANTS
+// ================================
+
+const mapWidth = 2400;
+const mapHeight = 1800;
+const INITIAL_VIBES = 10;
+const WIN_VIBES = 50;
+const LOSE_VIBES = 0;
+const SUN_DURATION = 10; // seconds
+const EDIBLE_DURATION = 5; // seconds
+const DEVIL_WARNING_DURATION = 3; // seconds
+const DEVIL_MIN_INTERVAL = 10; // seconds
+const DEVIL_LIFESPAN = 10; // seconds
+const DEVIL_SPAWN_CHANCE = 0.25;
+const DEVIL_VIBES_PENALTY = 15;
+const GRENADE_SPAWN_DELAY = 15; // seconds
+const DOG_POOP_TIMER = 5; // seconds
+const ITEM_SPAWN_INTERVAL_MIN = 0.5; // seconds
+const ITEM_SPAWN_INTERVAL_MAX = 2; // seconds
+const BLOCK_SIZE_NS = 1/20; // North-South blocks are 1/20th mile
+const BLOCK_SIZE_EW = 1/5;  // East-West blocks are 1/5th mile
+const UI_FONT_SIZE = 16;
+const UI_COLOR = [30, 30, 30, 200]; // Dark semi-transparent
+const UI_BG_COLOR = [255, 255, 255, 150]; // Light semi-transparent
+const UI_PADDING = 4;
+const DEVIL_SPEED = 300; // Increased from 2 to be faster than player (player speed is 240)
+const SUN_COLOR = [255, 255, 180, 100]; // Yellow tint with alpha
+const EDIBLE_COLORS = [
+    [255, 100, 100, 90], // Red tint
+    [100, 255, 100, 90], // Green tint
+    [100, 100, 255, 90], // Blue tint
+    [255, 100, 255, 90], // Purple tint
+];
 
 // ================================
 // 1. INITIALIZE GAME
 // ================================
 
 kaboom({
-    width: 800,
-    height: 600,
+    width: 1024,  // Increased from 800
+    height: 768,  // Increased from 600
     background: [0, 0, 0],
+    crisp: true,  // Enable crisp rendering
+    pixelDensity: 1,  // Disable high DPI scaling
 });
 
-// Map size
-const mapWidth = 1600;
-const mapHeight = 1200;
+console.log("Kaboom initialized!"); // Debug log to verify Kaboom is running
 
 // ================================
 // 2. LOAD ASSETS
 // ================================
 
 loadSprite("start", "static/start_screen.jpg");
+console.log("Start screen sprite loaded!"); // Debug log to verify asset loading
+
 loadSprite("player", "static/KJK.png");
+console.log("Player sprite loaded!"); // Debug log to verify asset loading
+
 loadSprite("map", "static/NYCmap.jpg");
+console.log("Map sprite loaded!"); // Debug log to verify asset loading
+
 loadSound("bgm", "static/bg_music.mp3");
+console.log("Background music loaded!"); // Debug log to verify asset loading
+
 loadSound("positive", "static/positive.wav");
+console.log("Positive sound loaded!"); // Debug log to verify asset loading
+
 loadSound("negative", "static/negative.wav");
+console.log("Negative sound loaded!"); // Debug log to verify asset loading
 
 // Item sprites
 const itemSprites = [
@@ -82,6 +144,38 @@ const itemsToSpawn = [
     { name: "subway", points: 2 },
 ];
 
+// Game state
+let gameState = {
+    vibes: INITIAL_VIBES,
+    inventory: [],
+    sunActive: false,
+    sunTimer: 0,
+    edibleTimers: [],
+    devil: null,
+    devilDisabled: false,
+    lastDevilSpawn: 0,
+    devilSpawnedAt: 0,
+    gameOver: false,
+    resultText: "",
+};
+
+// Helper functions for game state
+function isHigh() {
+    const now = time();
+    gameState.edibleTimers = gameState.edibleTimers.filter(t => now - t < EDIBLE_DURATION);
+    return gameState.edibleTimers.length > 0;
+}
+
+function applyEdible() {
+    gameState.edibleTimers.push(time());
+}
+
+function updateSunEffect() {
+    if (gameState.sunActive && time() - gameState.sunTimer > SUN_DURATION) {
+        gameState.sunActive = false;
+    }
+}
+
 // ================================
 // 4. START SCREEN
 // ================================
@@ -100,6 +194,7 @@ scene("start", () => {
     ]);
 
     onKeyPress(() => {
+        console.log("Transitioning to game scene!"); // Debug log to verify scene transition
         go("game");
     });
 });
@@ -109,6 +204,7 @@ scene("start", () => {
 // ================================
 
 scene("game", () => {
+    console.log("Game scene loaded!"); // Debug log to verify scene transition
 
     let music = play("bgm", {
         volume: 0.5,
@@ -124,11 +220,11 @@ scene("game", () => {
 
     // Player (spawn dead center)
     const player = add([
-        sprite("player"),
+        sprite("player", { width: 64, height: 64 }),
         pos(mapWidth / 2, mapHeight / 2),
         area(),
         body(),
-        scale(0.15),
+        z(1),
     ]);
 
     // Popup Text (attached to player position)
@@ -147,14 +243,100 @@ scene("game", () => {
         popupLabel.pos = player.pos.add(vec2(0, -70)); // always float above player
     });
 
-    // Score tracking
-    let score = 0;
-    const scoreLabel = add([
-        text("Score: 0"),
-        pos(12, 12),
+    // Create UI container with proper transparency
+    const uiContainer = add([
+        rect(width(), 100), // Increased height for better visibility
+        pos(0, 0),
+        color(0, 0, 0, 0.8), // More opaque background
         fixed(),
-        { value: 0 },
+        z(99),
     ]);
+
+    // Vibes tracking
+    const vibesLabel = add([
+        text(`Vibes: ${gameState.vibes}`, { 
+            size: 24, // Increased size
+            font: "sans-serif"
+        }),
+        pos(20, 20), // Adjusted position
+        color(255, 255, 255),
+        fixed(),
+        z(100),
+    ]);
+
+    // Inventory
+    const inventoryLabel = add([
+        text("Inventory: " + gameState.inventory.join(", "), { 
+            size: 24, // Increased size
+            font: "sans-serif"
+        }),
+        pos(20, 50), // Adjusted position
+        color(255, 255, 255),
+        fixed(),
+        z(100),
+    ]);
+
+    // Distance tracking
+    let distanceWalked = 0;
+    const distanceLabel = add([
+        text("Distance: 0.0 miles", { 
+            size: 24, // Increased size
+            font: "sans-serif"
+        }),
+        pos(width() - 250, 20), // Adjusted position
+        color(255, 255, 255),
+        fixed(),
+        z(100),
+    ]);
+
+    // Time tracking
+    let startTime = time();
+    const timeLabel = add([
+        text("Time: 0:00", { 
+            size: 24, // Increased size
+            font: "sans-serif"
+        }),
+        pos(width() - 250, 50), // Adjusted position
+        color(255, 255, 255),
+        fixed(),
+        z(100),
+    ]);
+
+    // Add a title at the top
+    const titleLabel = add([
+        text("NYC Vibes", { 
+            size: 36, // Increased size
+            font: "sans-serif"
+        }),
+        pos(center().x, 20),
+        anchor("center"),
+        color(255, 255, 255),
+        fixed(),
+        z(100),
+    ]);
+
+    // Track player movement for distance
+    let lastPos = player.pos.clone();
+    onUpdate(() => {
+        // Update distance
+        const dx = Math.abs(player.pos.x - lastPos.x);
+        const dy = Math.abs(player.pos.y - lastPos.y);
+        
+        // Convert pixels to miles
+        const milesX = (dx / mapWidth) * (mapWidth * BLOCK_SIZE_EW);
+        const milesY = (dy / mapHeight) * (mapHeight * BLOCK_SIZE_NS);
+        const totalMiles = Math.sqrt(milesX * milesX + milesY * milesY);
+        
+        distanceWalked += totalMiles;
+        distanceLabel.text = `Distance: ${distanceWalked.toFixed(1)} miles`;
+        lastPos = player.pos.clone();
+
+        // Update time
+        const elapsed = time() - startTime;
+        const minutes = Math.floor(elapsed / 60);
+        const seconds = Math.floor(elapsed % 60);
+        timeLabel.text = `Time: ${minutes}:${seconds.toString().padStart(2, '0')}`;
+    });
 
     // Player movement
     const speed = 240;
@@ -163,64 +345,328 @@ scene("game", () => {
     onKeyDown("up", () => player.move(0, -speed));
     onKeyDown("down", () => player.move(0, speed));
 
-    // Clamp player inside map
+    // Clamp player inside map with buffer
     onUpdate(() => {
-        player.pos.x = clamp(player.pos.x, 0, mapWidth - player.width * player.scale.x);
-        player.pos.y = clamp(player.pos.y, 0, mapHeight - player.height * player.scale.y);
+        const buffer = 50; // Buffer zone to prevent player from going off screen
+        player.pos.x = clamp(player.pos.x, buffer, mapWidth - player.width - buffer);
+        player.pos.y = clamp(player.pos.y, buffer, mapHeight - player.height - buffer);
     });
 
-    // ===== Helper Functions =====
+    // Load devil sprite before using it
+    loadSprite("devil", "static/devil.png", {
+        width: 64,
+        height: 64
+    });
+    loadSound("dark", "static/dark.mp3");
+    loadSound("boom", "static/boom.wav");
 
-    function spawnItem(name, points, position = null) {
-        add([
-            sprite(name, { width: 64, height: 64 }),
-            pos(position || vec2(rand(50, mapWidth - 100), rand(50, mapHeight - 100))),
-            area(),
-            name,
-            { points: points, itemName: name },
-        ]);
-    }
+    // Add warning indicator
+    const warningIndicator = add([
+        text("DEVIL APPROACHING!", { 
+            size: 32,
+            font: "sans-serif"
+        }),
+        pos(center().x, 100),
+        anchor("center"),
+        color(255, 0, 0),
+        fixed(),
+        z(101)
+    ]);
+    warningIndicator.hidden = true;
 
-    function spawnNearCenter(name, points) {
-        let offsetX = rand(-150, 150);
-        let offsetY = rand(-150, 150);
-        while (Math.abs(offsetX) < 50 && Math.abs(offsetY) < 50) {
-            offsetX = rand(-150, 150);
-            offsetY = rand(-150, 150);
-        }
-        const position = vec2(mapWidth / 2 + offsetX, mapHeight / 2 + offsetY);
-        spawnItem(name, points, position);
-    }
+    // Track if grenade has spawned
+    let grenadeSpawned = false;
+    let gameStartTime = time();
 
+    // Modified spawn logic
     function spawnRandomItem() {
-        const item = choose(itemsToSpawn);
-        spawnItem(item.name, item.points);
+        const now = time();
+        const elapsed = now - gameStartTime;
+        
+        // Special grenade spawn logic - only once per game
+        if (!grenadeSpawned && elapsed >= GRENADE_SPAWN_DELAY) {
+            grenadeSpawned = true;
+            return { name: "grenade", points: 0 };
+        }
+        
+        // Regular item spawn
+        return choose(itemsToSpawn);
     }
 
-    function spawnRandomly() {
-        spawnRandomItem();
-        wait(rand(1, 4), spawnRandomly);
+    // Helper function to spawn an item at a given position
+    function spawnItem(itemName, points, position) {
+        let x, y;
+        if (position) {
+            x = position.x;
+            y = position.y;
+        } else {
+            x = rand(100, mapWidth - 100);
+            y = rand(100, mapHeight - 100);
+        }
+        const obj = add([
+            sprite(itemName, { width: 64, height: 64 }),
+            pos(x, y),
+            area(),
+            z(1),
+            { points: points, itemName: itemName },
+        ]);
+        return obj;
     }
 
-    // ===== Start Spawning =====
+    // Helper function to spawn an item near the center of the map
+    function spawnNearCenter(itemName, points) {
+        // Center with a small random offset
+        const offset = 100;
+        const x = (mapWidth / 2) + rand(-offset, offset);
+        const y = (mapHeight / 2) + rand(-offset, offset);
+        return spawnItem(itemName, points, { x, y });
+    }
 
-    spawnNearCenter("dog", 4); // Dog near player
-    spawnNearCenter("coffee", 5); // Coffee near player
+    // Modified dog spawn logic
+    function spawnDog() {
+        const dog = spawnItem("dog", 4);
+        if (dog) {
+            // Schedule poop transformation
+            wait(DOG_POOP_TIMER, () => {
+                if (dog.exists()) { // Check if dog still exists (not collected)
+                    const poopPos = dog.pos.clone();
+                    destroy(dog);
+                    spawnItem("poop", -5, poopPos);
+                }
+            });
+        }
+    }
+
+    // Modified devil spawn check
+    onUpdate(() => {
+        const now = time();
+        
+        // Show warning before devil spawn
+        if (!gameState.devil && !gameState.devilDisabled && 
+            now - gameState.lastDevilSpawn > DEVIL_MIN_INTERVAL - DEVIL_WARNING_DURATION && 
+            now - gameState.lastDevilSpawn < DEVIL_MIN_INTERVAL && 
+            Math.random() < DEVIL_SPAWN_CHANCE) {
+            
+            warningIndicator.hidden = false;
+            warningIndicator.opacity = 1;
+            
+            // Flash warning
+            loop(0.1, () => {
+                warningIndicator.opacity = warningIndicator.opacity === 1 ? 0.5 : 1;
+            });
+            
+            // Hide warning after duration
+            wait(DEVIL_WARNING_DURATION, () => {
+                warningIndicator.hidden = true;
+                warningIndicator.opacity = 1;
+            });
+        }
+        
+        // Rest of devil spawn logic...
+        if (!gameState.devil && !gameState.devilDisabled && 
+            now - gameState.lastDevilSpawn > DEVIL_MIN_INTERVAL && 
+            Math.random() < DEVIL_SPAWN_CHANCE) {
+            
+            // Spawn devil
+            gameState.devil = add([
+                sprite("devil", { width: 64, height: 64 }),
+                pos(rand(0, mapWidth - 100), rand(0, mapHeight - 100)),
+                area(),
+                z(1),
+                "devil",
+            ]);
+
+            gameState.devilSpawnedAt = now;
+            gameState.lastDevilSpawn = now;
+
+            // Play dark music
+            gameState.devilMusic = play("dark", {
+                volume: 0.5,
+                loop: true,
+            });
+        }
+
+        // Update devil movement
+        if (gameState.devil) {
+            // Calculate direction to player
+            const dx = player.pos.x - gameState.devil.pos.x;
+            const dy = player.pos.y - gameState.devil.pos.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            
+            if (dist > 0) {
+                // Move devil towards player at DEVIL_SPEED
+                const moveX = (dx / dist) * DEVIL_SPEED;
+                const moveY = (dy / dist) * DEVIL_SPEED;
+                gameState.devil.move(moveX, moveY);
+            }
+
+            // Check collision with player
+            if (gameState.devil.isColliding(player)) {
+                if (gameState.inventory.includes("grenade")) {
+                    // Use grenade
+                    gameState.inventory = gameState.inventory.filter(item => item !== "grenade");
+                    inventoryLabel.text = "Inventory: " + gameState.inventory.join(", ");
+                    
+                    // Flash effect
+                    add([
+                        rect(width(), height()),
+                        pos(0, 0),
+                        color(255, 255, 255),
+                        fixed(),
+                        z(102),
+                        lifespan(0.5),
+                    ]);
+
+                    play("boom");
+                    destroy(gameState.devil);
+                    gameState.devil = null;
+                    gameState.devilDisabled = true;
+                    
+                    // Stop devil music
+                    if (gameState.devilMusic) {
+                        gameState.devilMusic.stop();
+                    }
+                    
+                    // Restore normal music
+                    play("bgm", {
+                        volume: 0.5,
+                        loop: true,
+                    });
+                } else {
+                    // Player caught by devil
+                    gameState.vibes -= DEVIL_VIBES_PENALTY;
+                    vibesLabel.text = `Vibes: ${gameState.vibes}`;
+                    play("negative");
+                    
+                    destroy(gameState.devil);
+                    gameState.devil = null;
+                    
+                    // Stop devil music
+                    if (gameState.devilMusic) {
+                        gameState.devilMusic.stop();
+                    }
+                    
+                    // Restore normal music
+                    play("bgm", {
+                        volume: 0.5,
+                        loop: true,
+                    });
+                }
+            }
+
+            // Check devil lifespan
+            if (now - gameState.devilSpawnedAt > DEVIL_LIFESPAN) {
+                destroy(gameState.devil);
+                gameState.devil = null;
+                
+                // Stop devil music
+                if (gameState.devilMusic) {
+                    gameState.devilMusic.stop();
+                }
+                
+                // Restore normal music
+                play("bgm", {
+                    volume: 0.5,
+                    loop: true,
+                });
+            }
+        }
+    });
+
+    // Modified initial spawns
+    spawnNearCenter("dog", 4);
+    spawnNearCenter("coffee", 5);
     spawnRandomly();
 
     // ===== Collisions =====
 
+    // Update collision handler for special items
     player.onCollide((obj) => {
         if (obj.points === undefined) return;
 
         destroy(obj);
-        score += obj.points;
-        scoreLabel.text = "Score: " + score;
+        let points = obj.points;
+        
+        // Apply sun effect
+        if (gameState.sunActive && points > 0) {
+            points *= 2;
+        }
+
+        gameState.vibes += points;
+        // Update vibes label with larger text and better visibility
+        vibesLabel.text = `Vibes: ${gameState.vibes}`;
+        vibesLabel.color = [255, 255, 255];
+        vibesLabel.font = "sans-serif";
+        vibesLabel.size = 24;
 
         if (obj.points > 0) {
             play("positive");
         } else if (obj.points < 0) {
             play("negative");
+        }
+
+        // Handle special items
+        if (obj.itemName === "sun") {
+            gameState.sunActive = true;
+            gameState.sunTimer = time();
+            add([
+                text("Sunshine boost activated!", { size: 24 }),
+                pos(center().x, height() - 100),
+                anchor("center"),
+                color(255, 255, 0),
+                fixed(),
+                z(101),
+                lifespan(2),
+            ]);
+        } else if (obj.itemName === "edible") {
+            applyEdible();
+            add([
+                text("Feeling funny...", { size: 24 }),
+                pos(center().x, height() - 100),
+                anchor("center"),
+                color(255, 100, 255),
+                fixed(),
+                z(101),
+                lifespan(2),
+            ]);
+        } else if (obj.itemName === "grenade") {
+            if (!gameState.inventory.includes("grenade")) {
+                gameState.inventory.push("grenade");
+                inventoryLabel.text = "Inventory: " + gameState.inventory.join(", ");
+                add([
+                    text("Grenade ready!", { size: 24 }),
+                    pos(center().x, height() - 100),
+                    anchor("center"),
+                    color(255, 0, 0),
+                    fixed(),
+                    z(101),
+                    lifespan(2),
+                ]);
+            }
+        } else if (obj.itemName === "museum") {
+            if (!gameState.inventory.includes("map")) {
+                gameState.inventory.push("map");
+                inventoryLabel.text = "Inventory: " + gameState.inventory.join(", ");
+                add([
+                    text("Map acquired!", { size: 24 }),
+                    pos(center().x, height() - 100),
+                    anchor("center"),
+                    color(0, 255, 0),
+                    fixed(),
+                    z(101),
+                    lifespan(2),
+                ]);
+            }
+        } else if (obj.itemName === "taxi" || obj.itemName === "subway") {
+            add([
+                text("Escaped via " + obj.itemName + "!", { size: 24 }),
+                pos(center().x, height() - 100),
+                anchor("center"),
+                color(0, 255, 255),
+                fixed(),
+                z(101),
+                lifespan(2),
+            ]);
         }
 
         if (obj.itemName && cuteMessages[obj.itemName]) {
@@ -235,20 +681,32 @@ scene("game", () => {
     // ===== Lose Condition =====
 
     onUpdate(() => {
-        if (score <= -20) {
-            add([
-                text("Game Over!", 48),
-                pos(center()),
-                anchor("center"),
-                color(255, 0, 0),
-            ]);
-            destroy(player);
-            music.stop();
-            wait(2, () => {
-                go("lose", { score: score });
-            });
+        updateSunEffect();
+        
+        if (gameState.vibes >= WIN_VIBES) {
+            gameState.gameOver = true;
+            gameState.resultText = "win";
+            go("win", { vibes: gameState.vibes });
+        } else if (gameState.vibes <= LOSE_VIBES) {
+            gameState.gameOver = true;
+            gameState.resultText = "lose";
+            go("lose", { vibes: gameState.vibes });
         }
     });
+
+    // Helper function to spawn random items at random intervals
+    function spawnRandomly() {
+        function spawnAndSchedule() {
+            const item = spawnRandomItem();
+            if (item && item.name && item.points !== undefined) {
+                spawnItem(item.name, item.points);
+            }
+            // Schedule next spawn
+            const nextTime = rand(ITEM_SPAWN_INTERVAL_MIN, ITEM_SPAWN_INTERVAL_MAX);
+            wait(nextTime, spawnAndSchedule);
+        }
+        spawnAndSchedule();
+    }
 
 });
 
@@ -258,7 +716,27 @@ scene("game", () => {
 
 scene("lose", (data) => {
     add([
-        text("Final Score: " + data.score, 32),
+        text("Final Vibes: " + data.vibes, 32),
+        pos(center()),
+        anchor("center"),
+    ]);
+
+    add([
+        text("Press any key to restart", { size: 24 }),
+        pos(center().x, height() - 50),
+        anchor("center"),
+        color(255, 255, 255),
+    ]);
+
+    onKeyPress(() => {
+        go("start");
+    });
+});
+
+// Add win scene
+scene("win", (data) => {
+    add([
+        text("You Win! Final Vibes: " + data.vibes, 32),
         pos(center()),
         anchor("center"),
     ]);
