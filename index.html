@@ -455,6 +455,8 @@ scene("game", () => {
         // Increase dog spawn chance by adding more dog entries
         const pool = itemsToSpawn.concat([
             { name: "dog", points: 4 },
+            { name: "dog", points: 4 },
+            { name: "dog", points: 4 },
             { name: "dog", points: 4 }
         ]);
         const chosen = choose(pool);
@@ -469,6 +471,16 @@ scene("game", () => {
     wait(2, () => {
         spawnRandomly();
     });
+
+    // Groovy overlay effect for edible
+    let groovyOverlay = add([
+        rect(width(), height()),
+        pos(0, 0),
+        color(255, 0, 255, 80), // Initial color, semi-transparent
+        fixed(),
+        z(999), // Always on top
+    ]);
+    groovyOverlay.hidden = true;
 
     // ===== Collisions =====
     player.onCollide((obj) => {
@@ -502,15 +514,17 @@ scene("game", () => {
             ]);
         } else if (obj.itemName === "edible") {
             applyEdible();
-            add([
-                text("Feeling funny...", { size: 24 }),
-                pos(center().x, height() - 100),
-                anchor("center"),
-                color(255, 100, 255),
-                fixed(),
-                z(101),
-                lifespan(2),
-            ]);
+            if (popupLabel.hidden) { // Only show popup if not already visible
+                add([
+                    text("Feeling funny...", { size: 24 }),
+                    pos(center().x, height() - 100),
+                    anchor("center"),
+                    color(255, 100, 255),
+                    fixed(),
+                    z(101),
+                    lifespan(2),
+                ]);
+            }
         } else if (obj.itemName === "grenade") {
             if (!gameState.inventory.includes("grenade")) {
                 gameState.inventory.push("grenade");
@@ -554,6 +568,7 @@ scene("game", () => {
             onUpdate("subwayMove", () => {
                 const t = Math.min((time() - startTime) / moveTime, 1);
                 player.pos.y = startY + (targetY - startY) * t;
+                console.log('Subway move update:', t, player.pos.y);
                 if (t >= 1) {
                     player.pos.y = targetY;
                     offUpdate("subwayMove");
