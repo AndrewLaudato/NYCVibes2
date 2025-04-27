@@ -96,11 +96,11 @@ const cuteMessages = {
 
 // Master item list
 const itemsToSpawn = [
-    { name: "pizza", points: 5 },
+    { name: "pizza", points: 4 },
     { name: "pretzel", points: 4 },
     { name: "bagels", points: 3 },
     { name: "coffee", points: 5 },
-    { name: "museum", points: 5 },
+    { name: "museum", points: 2 },
     { name: "tourist", points: -4 },
     { name: "edible", points: 5 },
     { name: "sun", points: 0 },
@@ -245,11 +245,11 @@ scene("game", () => {
     // Vibes tracking with enhanced visibility
     const vibesLabel = add([
         text(`Vibes: ${gameState.vibes}`, { 
-            size: 30, // Slightly smaller
+            size: 30, 
             font: "Arial",
             width: width() / 3,
         }),
-        pos(20, 50), // Move further down
+        pos(20, 50), 
         color(255, 255, 255),
         fixed(),
         z(100),
@@ -740,12 +740,24 @@ scene("lose", (data) => {
         anchor("center"),
     ]);
     add([
-        text("Press any key to restart", { size: 24 }),
-        pos(center().x, height() - 50),
+        text("Game Over", { size: 48 }),
+        pos(center().x, center().y - 50),
+        anchor("center"),
+        color(255, 0, 0),
+        fixed(),
+        z(100),
+    ]);
+    const restartButton = add([
+        text("Restart", { size: 24 }),
+        pos(center().x, center().y + 50),
         anchor("center"),
         color(255, 255, 255),
+        fixed(),
+        z(100),
+        area(),
+        "restartButton",
     ]);
-    onKeyPress(() => {
+    onClick("restartButton", () => {
         go("start");
     });
 });
@@ -762,12 +774,24 @@ scene("win", (data) => {
         anchor("center"),
     ]);
     add([
-        text("Press any key to restart", { size: 24 }),
-        pos(center().x, height() - 50),
+        text("Game Over", { size: 48 }),
+        pos(center().x, center().y - 50),
+        anchor("center"),
+        color(255, 0, 0),
+        fixed(),
+        z(100),
+    ]);
+    const restartButton = add([
+        text("Restart", { size: 24 }),
+        pos(center().x, center().y + 50),
         anchor("center"),
         color(255, 255, 255),
+        fixed(),
+        z(100),
+        area(),
+        "restartButton",
     ]);
-    onKeyPress(() => {
+    onClick("restartButton", () => {
         go("start");
     });
 });

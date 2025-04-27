@@ -31,7 +31,7 @@ const UI_BG_COLOR = [255, 255, 255, 150]; // Light semi-transparent
 const UI_PADDING = 4;
 
 // Speed constants
-const DEVIL_SPEED = 270; // Reduced by 10% from 300
+const DEVIL_SPEED = 250; // Reduced by 10% from 300
 
 // Visual constants
 const SUN_COLOR = [255, 255, 180, 100]; // Yellow tint with alpha
