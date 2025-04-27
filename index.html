@@ -471,28 +471,22 @@ scene("game", () => {
     });
 
     // ===== Collisions =====
-
-    // Update collision handler for special items
     player.onCollide((obj) => {
         if (obj.points === undefined) return;
 
         destroy(obj);
         let points = obj.points;
-        
         // Apply sun effect
         if (gameState.sunActive && points > 0) {
             points *= 2;
         }
-
         gameState.vibes += points;
-        updateVibesDisplay(); // Update vibes display
-
+        updateVibesDisplay();
         if (obj.points > 0) {
             play("positive");
         } else if (obj.points < 0) {
             play("negative");
         }
-
         // Handle special items
         if (obj.itemName === "sun") {
             gameState.sunActive = true;
@@ -580,7 +574,9 @@ scene("game", () => {
                 z(101),
                 lifespan(2),
             ]);
-        } else if (obj.itemName === "taxi") {
+        }
+        // Taxi block moved out of subway block
+        else if (obj.itemName === "taxi") {
             // Remove devil if present
             if (gameState.devil) {
                 destroy(gameState.devil);
@@ -597,13 +593,84 @@ scene("game", () => {
                 lifespan(2),
             ]);
         }
-
         if (obj.itemName && cuteMessages[obj.itemName]) {
             popupLabel.text = cuteMessages[obj.itemName];
             popupLabel.hidden = false;
             wait(2, () => {
                 popupLabel.hidden = true;
             });
+        }
+    });
+
+    // ===== DEVIL SPAWN AND UPDATE LOGIC =====
+    onUpdate(() => {
+        // Devil spawn logic
+        const now = time();
+        if (!gameState.devil && !gameState.devilDisabled && now - gameState.lastDevilSpawn > DEVIL_MIN_INTERVAL && Math.random() < DEVIL_SPAWN_CHANCE) {
+            gameState.devil = add([
+                sprite("devil", { width: 64, height: 64 }),
+                pos(rand(0, mapWidth - 100), rand(0, mapHeight - 100)),
+                area(),
+                z(2),
+                "devil",
+            ]);
+            gameState.devilSpawnedAt = now;
+            gameState.lastDevilSpawn = now;
+            // Play dark music
+            gameState.devilMusic = play("dark", {
+                volume: 0.5,
+                loop: true,
+            });
+        }
+        // Devil update logic
+        if (gameState.devil) {
+            // Move devil towards player
+            const dx = player.pos.x - gameState.devil.pos.x;
+            const dy = player.pos.y - gameState.devil.pos.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist > 0) {
+                const moveX = (dx / dist) * DEVIL_SPEED;
+                const moveY = (dy / dist) * DEVIL_SPEED;
+                gameState.devil.move(moveX, moveY);
+            }
+            // Check collision with player
+            if (gameState.devil.isColliding(player)) {
+                if (gameState.inventory.includes("grenade")) {
+                    // Use grenade
+                    gameState.inventory = gameState.inventory.filter(item => item !== "grenade");
+                    updateInventoryLabel();
+                    add([
+                        rect(width(), height()),
+                        pos(0, 0),
+                        color(255, 255, 255),
+                        fixed(),
+                        z(102),
+                        lifespan(0.5),
+                    ]);
+                    play("boom");
+                    destroy(gameState.devil);
+                    gameState.devil = null;
+                    gameState.devilDisabled = true;
+                    if (gameState.devilMusic) gameState.devilMusic.stop();
+                    playMusic("bgm");
+                } else {
+                    // Player caught by devil
+                    gameState.vibes -= DEVIL_VIBES_PENALTY;
+                    updateVibesDisplay();
+                    play("negative");
+                    destroy(gameState.devil);
+                    gameState.devil = null;
+                    if (gameState.devilMusic) gameState.devilMusic.stop();
+                    playMusic("bgm");
+                }
+            }
+            // Devil lifespan
+            if (now - gameState.devilSpawnedAt > DEVIL_LIFESPAN) {
+                destroy(gameState.devil);
+                gameState.devil = null;
+                if (gameState.devilMusic) gameState.devilMusic.stop();
+                playMusic("bgm");
+            }
         }
     });
 
