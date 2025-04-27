@@ -16,10 +16,6 @@
             min-height: 100vh;
             background: #000;
         }
-        canvas {
-            image-rendering: pixelated;
-            image-rendering: crisp-edges;
-        }
     </style>
 </head>
 <body>
@@ -35,11 +31,9 @@ console.log("Script started!"); // Debug log to verify script execution
 // ================================
 
 kaboom({
-    width: 1024,  // Increased from 800
-    height: 768,  // Increased from 600
-    background: [0, 0, 0],
-    crisp: true,  // Enable crisp rendering
-    pixelDensity: 1,  // Disable high DPI scaling
+    width: 1024,
+    height: 768,
+    background: [0, 0, 0]
 });
 
 console.log("Kaboom initialized!"); // Debug log to verify Kaboom is running
@@ -49,6 +43,8 @@ console.log("Kaboom initialized!"); // Debug log to verify Kaboom is running
 // ================================
 
 loadSprite("start", "static/start_screen.jpg");
+loadSprite("win_screen", "static/win_screen.jpg");
+loadSprite("lose_screen", "static/lose_screen.jpg");
 console.log("Start screen sprite loaded!"); // Debug log to verify asset loading
 
 loadSprite("player", "static/KJK.png");
@@ -107,7 +103,6 @@ const itemsToSpawn = [
     { name: "museum", points: 5 },
     { name: "tourist", points: -4 },
     { name: "edible", points: 5 },
-    { name: "grenade", points: 0 },
     { name: "sun", points: 0 },
     { name: "construction", points: -3 },
     { name: "rain", points: -4 },
@@ -147,6 +142,21 @@ function updateSunEffect() {
     }
 }
 
+// Helper function to reset game state
+function resetGameState() {
+    gameState.vibes = INITIAL_VIBES;
+    gameState.inventory = [];
+    gameState.sunActive = false;
+    gameState.sunTimer = 0;
+    gameState.edibleTimers = [];
+    gameState.devil = null;
+    gameState.devilDisabled = false;
+    gameState.lastDevilSpawn = 0;
+    gameState.devilSpawnedAt = 0;
+    gameState.gameOver = false;
+    gameState.resultText = "";
+}
+
 // ================================
 // 4. START SCREEN
 // ================================
@@ -165,7 +175,7 @@ scene("start", () => {
     ]);
 
     onKeyPress(() => {
-        console.log("Transitioning to game scene!"); // Debug log to verify scene transition
+        resetGameState(); // Reset state on new game
         go("game");
     });
 });
@@ -376,20 +386,7 @@ scene("game", () => {
     let grenadeSpawned = false;
     let gameStartTime = time();
 
-    // Modified spawn logic
-    function spawnRandomItem() {
-        const now = time();
-        const elapsed = now - gameStartTime;
-        // Special grenade spawn logic - only once per game, 30% chance
-        if (!grenadeSpawned && elapsed >= GRENADE_SPAWN_DELAY && Math.random() < 0.3) {
-            grenadeSpawned = true;
-            return { name: "grenade", points: 0 };
-        }
-        // Regular item spawn
-        return choose(itemsToSpawn.filter(item => item.name !== "grenade"));
-    }
-
-    // Helper function to spawn an item at a given position
+    // --- Helper Functions ---
     function spawnItem(itemName, points, position) {
         let x, y;
         if (position) {
@@ -408,17 +405,13 @@ scene("game", () => {
         ]);
         return obj;
     }
-
-    // Only spawn dog and coffee near center, not on player
-    function spawnDogNearCenterNotOnPlayer() {
-        const offset = 100;
-        let x = (mapWidth / 2) + rand(-offset, offset);
-        let y = (mapHeight / 2) + rand(-offset, offset);
-        while (Math.abs(x - mapWidth/2) < 40 && Math.abs(y - mapHeight/2) < 40) {
-            x = (mapWidth / 2) + rand(-offset, offset);
-            y = (mapHeight / 2) + rand(-offset, offset);
+    function spawnDogWithPoopTimer(position) {
+        let dog;
+        if (position) {
+            dog = spawnItem("dog", 4, position);
+        } else {
+            dog = spawnItem("dog", 4);
         }
-        const dog = spawnItem("dog", 4, { x, y });
         if (dog) {
             wait(DOG_POOP_TIMER, () => {
                 if (dog.exists()) {
@@ -428,9 +421,18 @@ scene("game", () => {
                 }
             });
         }
+        return dog;
     }
-
-    // Generic version for other items (like coffee)
+    function spawnDogNearCenterNotOnPlayer() {
+        const offset = 100;
+        let x = (mapWidth / 2) + rand(-offset, offset);
+        let y = (mapHeight / 2) + rand(-offset, offset);
+        while (Math.abs(x - mapWidth/2) < 40 && Math.abs(y - mapHeight/2) < 40) {
+            x = (mapWidth / 2) + rand(-offset, offset);
+            y = (mapHeight / 2) + rand(-offset, offset);
+        }
+        spawnDogWithPoopTimer({ x, y });
+    }
     function spawnNearCenterNotOnPlayer(itemName, points) {
         const offset = 100;
         let x = (mapWidth / 2) + rand(-offset, offset);
@@ -441,11 +443,29 @@ scene("game", () => {
         }
         return spawnItem(itemName, points, { x, y });
     }
+    function spawnRandomItem() {
+        const now = time();
+        const elapsed = now - gameStartTime;
+        // Special grenade spawn logic - only once per game, 30% chance
+        if (!grenadeSpawned && elapsed >= GRENADE_SPAWN_DELAY && Math.random() < 0.3) {
+            grenadeSpawned = true;
+            console.log('Spawning grenade!');
+            return { name: "grenade", points: 0 };
+        }
+        // Increase dog spawn chance by adding more dog entries
+        const pool = itemsToSpawn.concat([
+            { name: "dog", points: 4 },
+            { name: "dog", points: 4 }
+        ]);
+        const chosen = choose(pool);
+        console.log('spawnRandomItem chose:', chosen);
+        return chosen;
+    }
+    // --- End Helper Functions ---
 
+    // Initial spawns and start random spawning
     spawnDogNearCenterNotOnPlayer();
     spawnNearCenterNotOnPlayer("coffee", 5);
-
-    // Delay all other random spawns until after a short wait (e.g., 2 seconds)
     wait(2, () => {
         spawnRandomly();
     });
@@ -525,9 +545,50 @@ scene("game", () => {
                     lifespan(2),
                 ]);
             }
-        } else if (obj.itemName === "taxi" || obj.itemName === "subway") {
+        } else if (obj.itemName === "subway") {
+            // Move player vertically to opposite quarter, animate at 2x speed
+            let targetY;
+            if (player.pos.y < mapHeight / 2) {
+                targetY = mapHeight * 0.75;
+            } else {
+                targetY = mapHeight * 0.25;
+            }
+            const moveDist = Math.abs(player.pos.y - targetY);
+            const moveTime = moveDist / (2 * 240); // 2x walking speed
+            const startY = player.pos.y;
+            const startTime = time();
+            onUpdate("subwayMove", () => {
+                const t = Math.min((time() - startTime) / moveTime, 1);
+                player.pos.y = startY + (targetY - startY) * t;
+                if (t >= 1) {
+                    player.pos.y = targetY;
+                    offUpdate("subwayMove");
+                }
+            });
+            // Remove devil if present
+            if (gameState.devil) {
+                destroy(gameState.devil);
+                gameState.devil = null;
+                if (gameState.devilMusic) gameState.devilMusic.stop();
+            }
             add([
-                text("Escaped via " + obj.itemName + "!", { size: 24 }),
+                text("Next stop, fun!", { size: 24 }),
+                pos(center().x, height() - 100),
+                anchor("center"),
+                color(0, 255, 255),
+                fixed(),
+                z(101),
+                lifespan(2),
+            ]);
+        } else if (obj.itemName === "taxi") {
+            // Remove devil if present
+            if (gameState.devil) {
+                destroy(gameState.devil);
+                gameState.devil = null;
+                if (gameState.devilMusic) gameState.devilMusic.stop();
+            }
+            add([
+                text("Escaped via taxi!", { size: 24 }),
                 pos(center().x, height() - 100),
                 anchor("center"),
                 color(0, 255, 255),
@@ -566,8 +627,13 @@ scene("game", () => {
     function spawnRandomly() {
         function spawnAndSchedule() {
             const item = spawnRandomItem();
+            console.log('spawnAndSchedule got:', item);
             if (item && item.name && item.points !== undefined) {
-                spawnItem(item.name, item.points);
+                if (item.name === "dog") {
+                    spawnDogWithPoopTimer(); // random position
+                } else {
+                    spawnItem(item.name, item.points);
+                }
             }
             // Schedule next spawn
             const nextTime = rand(ITEM_SPAWN_INTERVAL_MIN, ITEM_SPAWN_INTERVAL_MAX);
@@ -575,7 +641,6 @@ scene("game", () => {
         }
         spawnAndSchedule();
     }
-
 });
 
 // ================================
@@ -584,18 +649,20 @@ scene("game", () => {
 
 scene("lose", (data) => {
     add([
+        sprite("lose_screen", { width: width(), height: height() }),
+        pos(0, 0),
+    ]);
+    add([
         text("Final Vibes: " + data.vibes, 32),
         pos(center()),
         anchor("center"),
     ]);
-
     add([
         text("Press any key to restart", { size: 24 }),
         pos(center().x, height() - 50),
         anchor("center"),
         color(255, 255, 255),
     ]);
-
     onKeyPress(() => {
         go("start");
     });
@@ -604,18 +671,20 @@ scene("lose", (data) => {
 // Add win scene
 scene("win", (data) => {
     add([
+        sprite("win_screen", { width: width(), height: height() }),
+        pos(0, 0),
+    ]);
+    add([
         text("You Win! Final Vibes: " + data.vibes, 32),
         pos(center()),
         anchor("center"),
     ]);
-
     add([
         text("Press any key to restart", { size: 24 }),
         pos(center().x, height() - 50),
         anchor("center"),
         color(255, 255, 255),
     ]);
-
     onKeyPress(() => {
         go("start");
     });
