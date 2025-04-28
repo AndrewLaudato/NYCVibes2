@@ -10,30 +10,44 @@ import {
 } from '../config/constants.js';
 
 export class Devil {
-    constructor(gameState) {
+    constructor(gameState, backgroundMusicHandle) {
         this.gameState = gameState;
         this.sprite = null;
-        this.music = null;
+        this.darkMusic = null;
+        this.backgroundMusic = backgroundMusicHandle;
         this.spawnedAt = 0;
-        this.lastDestroyed = 0;
         this.initialSpawnTime = 0;
     }
 
     spawn(player) {
-        if (!player || this.sprite) return;
+        console.log('Devil.spawn() called');
+        if (!player || this.sprite) {
+            console.log('Devil.spawn() early return: no player or already spawned');
+            return;
+        }
         
         // Check initial delay
         if (this.initialSpawnTime === 0) {
             this.initialSpawnTime = time();
+            console.log('Devil.spawn() initialSpawnTime set, returning');
             return;
         }
-        if (time() - this.initialSpawnTime < DEVIL_INITIAL_DELAY) return;
-        
+        if (time() - this.initialSpawnTime < DEVIL_INITIAL_DELAY) {
+            console.log('Devil.spawn() waiting for DEVIL_INITIAL_DELAY');
+            return;
+        }
+
         // Check cooldown
-        if (time() - this.lastDestroyed < DEVIL_MIN_INTERVAL) return;
+        if (time() - this.gameState.lastDevilDestroyed < DEVIL_MIN_INTERVAL) {
+            console.log('Devil.spawn() waiting for DEVIL_MIN_INTERVAL');
+            return;
+        }
 
         // Check spawn chance
-        if (Math.random() > DEVIL_SPAWN_CHANCE) return;
+        if (Math.random() > DEVIL_SPAWN_CHANCE) {
+            console.log('Devil.spawn() failed DEVIL_SPAWN_CHANCE');
+            return;
+        }
 
         // Calculate spawn position away from player
         const angle = Math.random() * Math.PI * 2;
@@ -55,12 +69,67 @@ export class Devil {
 
         this.spawnedAt = time();
         this.gameState.devil = this;
-        
-        // Play devil music
-        this.music = play("dark", {
-            volume: 0.3,
-            loop: true
-        });
+        this.playDarkMusic();
+        console.log('Devil spawned at', boundedX, boundedY);
+    }
+
+    playDarkMusic() {
+        // Fade out background music
+        if (this.backgroundMusic) {
+            this.fadeOutMusic(this.backgroundMusic);
+        }
+        // Play and fade in dark music
+        this.darkMusic = play("dark", { volume: 0, loop: true });
+        this.fadeInMusic(this.darkMusic, 0.3);
+    }
+
+    stopDarkMusic() {
+        // Fade out and stop dark music
+        if (this.darkMusic) {
+            this.fadeOutMusic(this.darkMusic, () => {
+                if (this.darkMusic && typeof this.darkMusic.stop === 'function') {
+                    this.darkMusic.stop();
+                    this.darkMusic = null;
+                }
+            });
+        }
+        // Fade in/resume background music
+        if (this.backgroundMusic) {
+            this.fadeInMusic(this.backgroundMusic, 0.5);
+        }
+    }
+
+    fadeInMusic(musicHandle, targetVolume = 0.3, step = 0.05, interval = 50) {
+        if (!musicHandle || typeof musicHandle.volume !== 'function') return;
+        let vol = 0;
+        musicHandle.volume(0);
+        const fade = setInterval(() => {
+            vol += step;
+            if (vol >= targetVolume) {
+                vol = targetVolume;
+                clearInterval(fade);
+            }
+            musicHandle.volume(vol);
+        }, interval);
+    }
+
+    fadeOutMusic(musicHandle, onComplete, step = 0.05, interval = 50) {
+        if (!musicHandle || typeof musicHandle.volume !== 'function') {
+            if (onComplete) onComplete();
+            return;
+        }
+        let vol = musicHandle.volume();
+        const fade = setInterval(() => {
+            vol -= step;
+            if (vol <= 0) {
+                vol = 0;
+                clearInterval(fade);
+                musicHandle.volume(0);
+                if (onComplete) onComplete();
+            } else {
+                musicHandle.volume(vol);
+            }
+        }, interval);
     }
 
     update(player) {
@@ -116,7 +185,7 @@ export class Devil {
             this.gameState.vibes = Math.max(0, this.gameState.vibes - DEVIL_VIBES_PENALTY);
             play("negative");
             this.destroy(false);
-            this.lastDestroyed = time(); // Record when devil was destroyed
+            this.gameState.lastDevilDestroyed = time(); // Record when devil was destroyed
         }
     }
 
@@ -125,10 +194,7 @@ export class Devil {
             destroy(this.sprite);
             this.sprite = null;
         }
-        if (this.music && typeof this.music.stop === 'function') {
-            this.music.stop();
-            this.music = null;
-        }
+        this.stopDarkMusic();
         if (permanent) {
             this.isDestroyed = true;
         }

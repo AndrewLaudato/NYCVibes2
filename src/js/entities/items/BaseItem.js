@@ -1,9 +1,11 @@
 import { mapWidth, mapHeight, DOG_POOP_TIMER } from '../../config/constants.js';
+import { ITEM_MESSAGES } from '../../config/messages.js';
 
 export class BaseItem {
-    constructor(type, gameState) {
+    constructor(type, gameState, player) {
         this.type = type;
         this.gameState = gameState;
+        this.player = player;
         this.sprite = null;
     }
 
@@ -23,9 +25,9 @@ export class BaseItem {
         ]);
 
         // Add collision handling
-        this.sprite.onCollide("player", (player) => {
+        this.sprite.onCollide("player", () => {
             if (this.sprite) {
-                this.handleCollision(player);
+                this.handleCollision();
             }
         });
 
@@ -50,8 +52,17 @@ export class BaseItem {
         }
     }
 
-    handleCollision(player) {
+    handleCollision() {
+        // Show a random message for this item type
+        const messages = ITEM_MESSAGES[this.type];
+        if (messages && this.player && typeof this.player.showMessage === 'function') {
+            const msg = messages[Math.floor(Math.random() * messages.length)];
+            this.player.showMessage(msg);
+        }
+
         // Play sound based on item type
+        let positivePoints = 5;
+        if (this.gameState.sunDoublePoints) positivePoints *= 2;
         switch(this.type) {
             case "coffee":
             case "pizza":
@@ -62,7 +73,7 @@ export class BaseItem {
             case "taxi":
             case "subway":
                 play("positive");
-                this.gameState.vibes += 5;  // Positive items give 5 vibes
+                this.gameState.vibes += positivePoints;  // Positive items give 5 or 10 vibes
                 break;
             case "poop":
             case "construction":
@@ -73,7 +84,7 @@ export class BaseItem {
                 break;
             case "dog":
                 play("positive");
-                this.gameState.vibes += 10;  // Dogs give 10 vibes
+                this.gameState.vibes += (this.gameState.sunDoublePoints ? 20 : 10);  // Dogs give 10 or 20 vibes
                 break;
         }
 

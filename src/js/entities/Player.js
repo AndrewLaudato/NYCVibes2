@@ -2,6 +2,7 @@ import { PLAYER_SPEED, PLAYER_WIDTH, PLAYER_HEIGHT, mapWidth, mapHeight } from '
 
 const PIXELS_PER_MILE = 960; // 1 mile = 960 pixels
 const VIBE_MILE_INCREMENT = 0.5; // 1 vibe per 0.5 miles
+const MESSAGE_COLOR = [0, 0, 139]; // Dark blue
 
 export class Player {
     constructor(gameState) {
@@ -50,9 +51,9 @@ export class Player {
     showMessage(message) {
         if (this.sprite) {
             const textObj = add([
-                text(message, { size: 16 }),
+                text(message, { size: 24 }),
                 pos(this.sprite.pos.x, this.sprite.pos.y - 20),
-                color(255, 255, 255),
+                color(MESSAGE_COLOR[0], MESSAGE_COLOR[1], MESSAGE_COLOR[2]),
                 fixed(),
                 z(100),
                 lifespan(2),

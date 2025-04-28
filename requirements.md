@@ -38,15 +38,15 @@
     - Grenade (one-time use against devil)
     - Sun (temporary bright screen effect)
     - Dog (spawns poop after delay)
+    - Museum (give player a map)
   - Transportation items:
-    - Subway (escapes devil)
-    - Taxi (escapes devil)
+    - Subway (escapes devil), moves player vertically
+    - Taxi (escapes devil), moves player, horizontally
 
 ### Devil Mechanics
-- [ ] Devil spawns after DEVIL_INITIAL_DELAY (10s)
-- [ ] Devil moves at 85% of original speed (DEVIL_SPEED = 250)
+- [ ] Devil spawns after DEVIL_INITIAL_DELAY (in constant)
 - [ ] Devil spawns at least 300 pixels away from player
-- [ ] Devil disappears after 10 seconds if not caught
+- [ ] Devil disappears after x seconds if not caught - x in constant
 - [ ] Devil causes -15 vibes on collision with player
 - [ ] Devil can be destroyed by:
   - Player using grenade (permanent destruction)

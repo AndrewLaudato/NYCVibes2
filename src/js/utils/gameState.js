@@ -22,6 +22,8 @@ export class GameState {
         this.sunEffectActive = false;
         this.edibleEffectStartTime = 0;
         this.edibleEffectActive = false;
+        this.lastDevilDestroyed = 0;
+        this.sunDoublePoints = false;
     }
 
     isHigh() {
@@ -37,6 +39,7 @@ export class GameState {
     updateSunEffect() {
         if (this.sunEffectActive && time() - this.sunEffectStartTime > SUN_DURATION) {
             this.sunEffectActive = false;
+            this.sunDoublePoints = false;
         }
         if (this.edibleEffectActive && time() - this.edibleEffectStartTime > EDIBLE_DURATION) {
             this.edibleEffectActive = false;
@@ -46,6 +49,7 @@ export class GameState {
     activateSunEffect() {
         this.sunEffectActive = true;
         this.sunEffectStartTime = time();
+        this.sunDoublePoints = true;
     }
 
     activateEdibleEffect() {

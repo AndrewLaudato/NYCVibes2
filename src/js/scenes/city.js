@@ -15,12 +15,14 @@ export function createMainScene() {
     return () => {
         const gameState = new GameState();
         gameState.vibes = INITIAL_VIBES;  // Initialize vibes
+        const backgroundMusic = play("bgm", {
+            volume: 0.5,
+            loop: true,
+        });
         const player = new Player(gameState);
-        const devil = new Devil(gameState);
         let gameStartTime = time();
         let canSpawnDevil = false;
         let canSpawnGrenade = false;
-        let currentMusic = null;
 
         // Initialize game
         const playerSprite = player.spawn();
@@ -100,15 +102,6 @@ export function createMainScene() {
             z(100),
         ]);
 
-        // Start background music
-        if (currentMusic) {
-            currentMusic.stop();
-        }
-        currentMusic = play("bgm", {
-            volume: 0.5,
-            loop: true,
-        });
-
         // Player movement
         onKeyDown("left", () => {
             if (playerSprite && playerSprite.exists && !playerSprite.is("enemy")) {
@@ -138,7 +131,7 @@ export function createMainScene() {
             const coffeeDistance = 200 + Math.random() * 100;
             const coffeeX = playerSprite.pos.x + Math.cos(coffeeAngle) * coffeeDistance;
             const coffeeY = playerSprite.pos.y + Math.sin(coffeeAngle) * coffeeDistance;
-            const coffee = new BaseItem("coffee", gameState);
+            const coffee = new BaseItem("coffee", gameState, player);
             coffee.spawnAt(coffeeX, coffeeY);
 
             // Spawn dog at different angle
@@ -146,7 +139,7 @@ export function createMainScene() {
             const dogDistance = 200 + Math.random() * 100;
             const dogX = playerSprite.pos.x + Math.cos(dogAngle) * dogDistance;
             const dogY = playerSprite.pos.y + Math.sin(dogAngle) * dogDistance;
-            const dog = new BaseItem("dog", gameState);
+            const dog = new BaseItem("dog", gameState, player);
             dog.spawnAt(dogX, dogY);
         };
 
@@ -169,7 +162,7 @@ export function createMainScene() {
             const x = Math.random() * (mapWidth - 64);
             const y = Math.random() * (mapHeight - 64);
             
-            const item = new BaseItem(itemType, gameState);
+            const item = new BaseItem(itemType, gameState, player);
             item.spawnAt(x, y);
         };
 
@@ -217,12 +210,14 @@ export function createMainScene() {
 
         // Main game loop
         onUpdate(() => {
+            // Update player (distance, miles, vibes)
+            player.update();
+
             // Update vibes counter
             vibesLabel.text = `Vibes: ${gameState.vibes}`;
             
-            // Update miles (1 mile = 1000 pixels)
-            const pixelsWalked = player.getDistanceWalked();
-            const miles = pixelsWalked / 1000;
+            // Update miles (use correct conversion from Player class)
+            const miles = player.getDistanceWalked();
             milesLabel.text = `Miles: ${miles.toFixed(1)}`;
             
             // Update duration
@@ -244,12 +239,16 @@ export function createMainScene() {
                 canSpawnGrenade = true;
             }
             
-            // Update devil
-            if (canSpawnDevil && !gameState.devil && !devil.isDestroyed) {
-                devil.spawn(playerSprite);
+            // Spawn devil if needed
+            if (canSpawnDevil && !gameState.devil) {
+                console.log('Attempting to spawn devil');
+                gameState.devil = new Devil(gameState, backgroundMusic);
             }
-            if (gameState.devil) {
-                devil.update(playerSprite);
+            if (gameState.devil && !gameState.devil.sprite) {
+                gameState.devil.spawn(playerSprite);
+            }
+            if (gameState.devil && gameState.devil.sprite) {
+                gameState.devil.update(playerSprite);
             }
             
             // Update game state
@@ -260,7 +259,7 @@ export function createMainScene() {
                 add([
                     rect(width, height),
                     pos(0, 0),
-                    rgb(255, 255, 180),
+                    rgb(SUN_COLOR[0], SUN_COLOR[1], SUN_COLOR[2]),
                     opacity(0.2),
                     fixed(),
                     z(98),
@@ -285,7 +284,9 @@ export function createMainScene() {
             // Check game over
             const gameOver = gameState.checkGameOver();
             if (gameOver.gameOver) {
-                currentMusic.stop();
+                if (gameState.currentMusic && typeof gameState.currentMusic.stop === 'function') {
+                    gameState.currentMusic.stop();
+                }
                 go(gameOver.result);
             }
         });
@@ -293,11 +294,11 @@ export function createMainScene() {
         // Return cleanup function
         return {
             cleanup() {
-                if (currentMusic) {
-                    currentMusic.stop();
+                if (backgroundMusic) {
+                    backgroundMusic.stop();
                 }
-                if (gameState.devil && gameState.devil.music) {
-                    gameState.devil.music.stop();
+                if (gameState.devil && gameState.devil.darkMusic) {
+                    gameState.devil.darkMusic.stop();
                 }
                 // Clean up any other resources
             }
