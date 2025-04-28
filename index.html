@@ -4,8 +4,6 @@
     <meta charset="UTF-8">
     <title>NYC Vibes JS</title>
     <link rel="icon" type="image/png" href="static/favicon.png">
-    <script src="https://unpkg.com/kaboom@3000/dist/kaboom.js"></script>
-    <script src="constants.js"></script>
     <style>
         body {
             margin: 0;
@@ -19,789 +17,86 @@
     </style>
 </head>
 <body>
-<script>
-console.log("Script started!"); // Debug log to verify script execution
+<script type="module">
+    import kaboom from 'https://unpkg.com/kaboom@3000.0.0/dist/kaboom.mjs';
+    import { createStartScene } from './src/js/scenes/start.js';
+    import { createMainScene } from './src/js/scenes/main.js';
+    import { createEndScene } from './src/js/scenes/end.js';
+    import { WIN_VIBES, LOSE_VIBES } from './src/js/config/constants.js';
 
-// ================================
-// 0. GAME CONSTANTS
-// ================================
+    // Load assets
+    const loadAssets = async () => {
+        try {
+            // Load background sprites
+            await Promise.all([
+                loadSprite("start", "static/start_screen.jpg"),
+                loadSprite("win_screen", "static/win_screen.jpg"),
+                loadSprite("lose_screen", "static/lose_screen.jpg"),
+                loadSprite("map", "static/NYCmap.jpg")
+            ]);
 
-// ================================
-// 1. INITIALIZE GAME
-// ================================
+            // Load character sprites
+            await Promise.all([
+                loadSprite("player", "static/KJK.png"),
+                loadSprite("devil", "static/devil.png")
+            ]);
 
-kaboom({
-    width: 1024,
-    height: 768,
-    background: [0, 0, 0]
-});
+            // Load sounds
+            await Promise.all([
+                loadSound("bgm", "static/bg_music.mp3"),
+                loadSound("positive", "static/positive.wav"),
+                loadSound("negative", "static/negative.wav"),
+                loadSound("dark", "static/dark.mp3"),
+                loadSound("boom", "static/boom.wav")
+            ]);
 
-console.log("Kaboom initialized!"); // Debug log to verify Kaboom is running
+            // Load item sprites
+            const itemSprites = [
+                "dog", "poop", "pizza", "pretzel", "bagels", "coffee",
+                "museum", "tourist", "edible", "grenade", "sun",
+                "construction", "rain", "taxi", "subway"
+            ];
+            await Promise.all(
+                itemSprites.map(spriteName => 
+                    loadSprite(spriteName, `static/${spriteName}.png`)
+                )
+            );
 
-// ================================
-// 2. LOAD ASSETS
-// ================================
+            // Create scenes after assets are loaded
+            scene("start", createStartScene());
+            scene("game", createMainScene());
+            scene("win", createEndScene());
+            scene("lose", createEndScene());
 
-loadSprite("start", "static/start_screen.jpg");
-loadSprite("win_screen", "static/win_screen.jpg");
-loadSprite("lose_screen", "static/lose_screen.jpg");
-console.log("Start screen sprite loaded!"); // Debug log to verify asset loading
-
-loadSprite("player", "static/KJK.png");
-console.log("Player sprite loaded!"); // Debug log to verify asset loading
-
-loadSprite("map", "static/NYCmap.jpg");
-console.log("Map sprite loaded!"); // Debug log to verify asset loading
-
-loadSound("bgm", "static/bg_music.mp3");
-console.log("Background music loaded!"); // Debug log to verify asset loading
-
-loadSound("positive", "static/positive.wav");
-console.log("Positive sound loaded!"); // Debug log to verify asset loading
-
-loadSound("negative", "static/negative.wav");
-console.log("Negative sound loaded!"); // Debug log to verify asset loading
-
-// Item sprites
-const itemSprites = [
-    "dog", "poop", "pizza", "pretzel", "bagels", "coffee",
-    "museum", "tourist", "edible", "grenade", "sun",
-    "construction", "rain", "taxi", "subway"
-];
-for (const spriteName of itemSprites) {
-    loadSprite(spriteName, `static/${spriteName}.png`);
-}
-
-// ================================
-// 3. CUTE MESSAGES
-// ================================
-
-const cuteMessages = {
-    pizza: "Nothing better than NYC pizza! +5",
-    dog: "Who's a good dog? +4",
-    pretzel: "Twist and shout! Pretzel +4",
-    bagels: "Bagels from NYC are unbeatable! +3",
-    coffee: "Fuel for the city grind! +5",
-    poop: "Watch your step! Gross! -5",
-    museum: "Discovered a hidden gem! +5",
-    tourist: "Tourist jam! -4",
-    edible: "Feeling funny... +5",
-    grenade: "Grenade ready! 0",
-    sun: "Sunshine boost activated!",
-    construction: "Detour ahead! -3",
-    rain: "Rainy day blues. -4",
-    taxi: "Caught a cab! +2",
-    subway: "Next stop, fun! +2",
-};
-
-// Master item list
-const itemsToSpawn = [
-    { name: "pizza", points: 4 },
-    { name: "pretzel", points: 4 },
-    { name: "bagels", points: 3 },
-    { name: "coffee", points: 5 },
-    { name: "museum", points: 2 },
-    { name: "tourist", points: -4 },
-    { name: "edible", points: 5 },
-    { name: "sun", points: 0 },
-    { name: "construction", points: -3 },
-    { name: "rain", points: -4 },
-    { name: "taxi", points: 2 },
-    { name: "subway", points: 2 },
-];
-
-// Game state
-let gameState = {
-    vibes: INITIAL_VIBES,
-    inventory: [],
-    sunActive: false,
-    sunTimer: 0,
-    edibleTimers: [],
-    devil: null,
-    devilDisabled: false,
-    lastDevilSpawn: 0,
-    devilSpawnedAt: 0,
-    gameOver: false,
-    resultText: "",
-};
-
-// Helper functions for game state
-function isHigh() {
-    const now = time();
-    gameState.edibleTimers = gameState.edibleTimers.filter(t => now - t < EDIBLE_DURATION);
-    return gameState.edibleTimers.length > 0;
-}
-
-function applyEdible() {
-    gameState.edibleTimers.push(time());
-}
-
-function updateSunEffect() {
-    if (gameState.sunActive && time() - gameState.sunTimer > SUN_DURATION) {
-        gameState.sunActive = false;
-    }
-}
-
-// Helper function to reset game state
-function resetGameState() {
-    gameState.vibes = INITIAL_VIBES;
-    gameState.inventory = [];
-    gameState.sunActive = false;
-    gameState.sunTimer = 0;
-    gameState.edibleTimers = [];
-    gameState.devil = null;
-    gameState.devilDisabled = false;
-    gameState.lastDevilSpawn = 0;
-    gameState.devilSpawnedAt = 0;
-    gameState.gameOver = false;
-    gameState.resultText = "";
-}
-
-// ================================
-// 4. START SCREEN
-// ================================
-
-scene("start", () => {
-    add([
-        sprite("start", { width: width(), height: height() }),
-        pos(0, 0),
-    ]);
-
-    add([
-        text("Press any key to start", { size: 24 }),
-        pos(center().x, height() - 50),
-        anchor("center"),
-        color(255, 255, 255),
-    ]);
-
-    onKeyPress(() => {
-        resetGameState(); // Reset state on new game
-        go("game");
-    });
-});
-
-// ================================
-// 5. MAIN GAME SCENE
-// ================================
-
-scene("game", () => {
-    console.log("Game scene loaded!"); // Debug log to verify scene transition
-
-    // Music instance tracking
-    let music = null;
-
-    function playMusic(track) {
-        if (music) music.stop();
-        music = play(track, {
-            volume: 0.5,
-            loop: true,
-        });
-    }
-
-    // Start background music
-    playMusic("bgm");
-
-    // Map background
-    add([
-        sprite("map", { width: mapWidth, height: mapHeight }),
-        pos(0, 0),
-        z(-1),
-    ]);
-
-    // Player (spawn dead center)
-    const player = add([
-        sprite("player", { width: 64, height: 64 }),
-        pos(mapWidth / 2, mapHeight / 2),
-        area(),
-        body(),
-        z(1),
-    ]);
-
-    // Popup Text (attached to player position)
-    const popupLabel = add([
-        text("", { size: 20 }),
-        pos(player.pos.add(vec2(0, -70))),
-        anchor("center"),
-        color(30, 30, 120), // dark blue
-    ]);
-
-    popupLabel.hidden = true;
-
-    // Camera follows player
-    onUpdate(() => {
-        camPos(player.pos);
-        popupLabel.pos = player.pos.add(vec2(0, -70)); // always float above player
-    });
-
-    // Create UI container with proper transparency
-    const uiContainer = add([
-        rect(width(), 120),
-        pos(0, 0),
-        color(0, 0, 0, 0.7),
-        fixed(),
-        z(99),
-    ]);
-
-    // Vibes tracking with enhanced visibility
-    const vibesLabel = add([
-        text(`Vibes: ${gameState.vibes}`, { 
-            size: 30, 
-            font: "Arial",
-            width: width() / 3,
-        }),
-        pos(20, 50), 
-        color(255, 255, 255),
-        fixed(),
-        z(100),
-        "vibesLabel"
-    ]);
-
-    // Function to update vibes label
-    function updateVibesDisplay() {
-        vibesLabel.text = `Vibes: ${gameState.vibes}`;
-        vibesLabel.color = gameState.vibes >= WIN_VIBES ? [0, 255, 0] :
-                            gameState.vibes <= LOSE_VIBES ? [255, 0, 0] :
-                            [255, 255, 255];
-    }
-
-    // Call initially
-    updateVibesDisplay();
-
-    // Miles (distance) in top right
-    let distanceWalked = 0;
-    const distanceLabel = add([
-        text("Miles: 0.0", { 
-            size: 24,
-            font: "Arial"
-        }),
-        pos(width() - 220, 20),
-        color(255, 255, 255),
-        fixed(),
-        z(100),
-    ]);
-
-    // Time tracking with enhanced visibility
-    let startTime = time();
-    const timeLabel = add([
-        text("Time: 0:00", { 
-            size: 24,
-            font: "sans-serif"
-        }),
-        pos(width() - 250, 60),
-        color(255, 255, 255),
-        fixed(),
-        z(100),
-    ]);
-
-    // Add a title at the top
-    const titleLabel = add([
-        text("NYC Vibes", { 
-            size: 36,
-            font: "sans-serif"
-        }),
-        pos(center().x, 20),
-        anchor("center"),
-        color(255, 255, 255),
-        fixed(),
-        z(100),
-    ]);
-
-    // Inventory label (declare in main scope)
-    let inventoryLabel = add([
-        text("Inventory: " + gameState.inventory.join(", "), {
-            size: 24,
-            font: "Arial"
-        }),
-        pos(20, 90),
-        color(255, 255, 255),
-        fixed(),
-        z(100),
-        "inventoryLabel"
-    ]);
-
-    // Function to update inventory label
-    function updateInventoryLabel() {
-        inventoryLabel.text = "Inventory: " + gameState.inventory.join(", ");
-    }
-
-    // Call initially
-    updateInventoryLabel();
-
-    // Update distance in onUpdate
-    let lastPos = player.pos.clone();
-    onUpdate(() => {
-        const dx = Math.abs(player.pos.x - lastPos.x);
-        const dy = Math.abs(player.pos.y - lastPos.y);
-        const milesX = (dx / mapWidth) * (mapWidth * BLOCK_SIZE_EW);
-        const milesY = (dy / mapHeight) * (mapHeight * BLOCK_SIZE_NS);
-        const totalMiles = Math.sqrt(milesX * milesX + milesY * milesY);
-        distanceWalked += totalMiles;
-        distanceLabel.text = `Miles: ${distanceWalked.toFixed(1)}`;
-        lastPos = player.pos.clone();
-
-        // Update time
-        const elapsed = time() - startTime;
-        const minutes = Math.floor(elapsed / 60);
-        const seconds = Math.floor(elapsed % 60);
-        timeLabel.text = `Time: ${minutes}:${seconds.toString().padStart(2, '0')}`;
-    });
-
-    // Player movement
-    const speed = 240;
-    onKeyDown("left", () => player.move(-speed, 0));
-    onKeyDown("right", () => player.move(speed, 0));
-    onKeyDown("up", () => player.move(0, -speed));
-    onKeyDown("down", () => player.move(0, speed));
-
-    // Clamp player inside map with buffer
-    onUpdate(() => {
-        const buffer = 50; // Buffer zone to prevent player from going off screen
-        player.pos.x = clamp(player.pos.x, buffer, mapWidth - player.width - buffer);
-        player.pos.y = clamp(player.pos.y, buffer, mapHeight - player.height - buffer);
-    });
-
-    // Load devil sprite before using it
-    loadSprite("devil", "static/devil.png", {
-        width: 64,
-        height: 64
-    });
-    loadSound("dark", "static/dark.mp3");
-    loadSound("boom", "static/boom.wav");
-
-    // Add warning indicator
-    const warningIndicator = add([
-        text("DEVIL APPROACHING!", { 
-            size: 32,
-            font: "sans-serif"
-        }),
-        pos(center().x, 100),
-        anchor("center"),
-        color(255, 0, 0),
-        fixed(),
-        z(101)
-    ]);
-    warningIndicator.hidden = true;
-
-    // Track if grenade has spawned
-    let grenadeSpawned = false;
-    let gameStartTime = time();
-
-    // --- Helper Functions ---
-    function spawnItem(itemName, points, position) {
-        let x, y;
-        if (position) {
-            x = position.x;
-            y = position.y;
-        } else {
-            x = rand(100, mapWidth - 100);
-            y = rand(100, mapHeight - 100);
-        }
-        const obj = add([
-            sprite(itemName, { width: 64, height: 64 }),
-            pos(x, y),
-            area(),
-            z(1),
-            { points: points, itemName: itemName },
-        ]);
-        return obj;
-    }
-    function spawnDogWithPoopTimer(position) {
-        let dog;
-        if (position) {
-            dog = spawnItem("dog", 4, position);
-        } else {
-            dog = spawnItem("dog", 4);
-        }
-        if (dog) {
-            wait(DOG_POOP_TIMER, () => {
-                if (dog.exists()) {
-                    const poopPos = dog.pos.clone();
-                    destroy(dog);
-                    spawnItem("poop", -5, poopPos);
-                }
-            });
-        }
-        return dog;
-    }
-    function spawnDogNearCenterNotOnPlayer() {
-        const offset = 100;
-        let x = (mapWidth / 2) + rand(-offset, offset);
-        let y = (mapHeight / 2) + rand(-offset, offset);
-        while (Math.abs(x - mapWidth/2) < 40 && Math.abs(y - mapHeight/2) < 40) {
-            x = (mapWidth / 2) + rand(-offset, offset);
-            y = (mapHeight / 2) + rand(-offset, offset);
-        }
-        spawnDogWithPoopTimer({ x, y });
-    }
-    function spawnNearCenterNotOnPlayer(itemName, points) {
-        const offset = 100;
-        let x = (mapWidth / 2) + rand(-offset, offset);
-        let y = (mapHeight / 2) + rand(-offset, offset);
-        while (Math.abs(x - mapWidth/2) < 40 && Math.abs(y - mapHeight/2) < 40) {
-            x = (mapWidth / 2) + rand(-offset, offset);
-            y = (mapHeight / 2) + rand(-offset, offset);
-        }
-        return spawnItem(itemName, points, { x, y });
-    }
-    function spawnRandomItem() {
-        const now = time();
-        const elapsed = now - gameStartTime;
-        // Special grenade spawn logic - only once per game, 30% chance
-        if (!grenadeSpawned && elapsed >= GRENADE_SPAWN_DELAY && Math.random() < 0.3) {
-            grenadeSpawned = true;
-            console.log('Spawning grenade!');
-            return { name: "grenade", points: 0 };
-        }
-        // Increase dog spawn chance by adding more dog entries
-        const pool = itemsToSpawn.concat([
-            { name: "dog", points: 4 },
-            { name: "dog", points: 4 },
-            { name: "dog", points: 4 },
-            { name: "dog", points: 4 }
-        ]);
-        const chosen = choose(pool);
-        console.log('spawnRandomItem chose:', chosen);
-        return chosen;
-    }
-    // --- End Helper Functions ---
-
-    // Initial spawns and start random spawning
-    spawnDogNearCenterNotOnPlayer();
-    spawnNearCenterNotOnPlayer("coffee", 5);
-    wait(2, () => {
-        spawnRandomly();
-    });
-
-    // Groovy overlay effect for edible
-    let groovyOverlay = add([
-        rect(width(), height()),
-        pos(0, 0),
-        color(255, 0, 255, 80), // Initial color, semi-transparent
-        fixed(),
-        z(999), // Always on top
-    ]);
-    groovyOverlay.hidden = true;
-
-    // ===== Collisions =====
-    player.onCollide((obj) => {
-        if (obj.points === undefined) return;
-
-        destroy(obj);
-        let points = obj.points;
-        // Apply sun effect
-        if (gameState.sunActive && points > 0) {
-            points *= 2;
-        }
-        gameState.vibes += points;
-        updateVibesDisplay();
-        if (obj.points > 0) {
-            play("positive");
-        } else if (obj.points < 0) {
-            play("negative");
-        }
-        // Handle special items
-        if (obj.itemName === "sun") {
-            gameState.sunActive = true;
-            gameState.sunTimer = time();
+            // Start the game
+            go("start");
+        } catch (error) {
+            console.error("Failed to load assets:", error);
+            // Show error message to user
             add([
-                text("Sunshine boost activated!", { size: 24 }),
-                pos(center().x, height() - 100),
+                text("Failed to load game assets. Please refresh the page.", {
+                    size: 24,
+                    font: "sans-serif"
+                }),
+                pos(center),
                 anchor("center"),
-                color(255, 255, 0),
-                fixed(),
-                z(101),
-                lifespan(2),
-            ]);
-        } else if (obj.itemName === "edible") {
-            applyEdible();
-            if (popupLabel.hidden) { // Only show popup if not already visible
-                add([
-                    text("Feeling funny...", { size: 24 }),
-                    pos(center().x, height() - 100),
-                    anchor("center"),
-                    color(255, 100, 255),
-                    fixed(),
-                    z(101),
-                    lifespan(2),
-                ]);
-            }
-        } else if (obj.itemName === "grenade") {
-            if (!gameState.inventory.includes("grenade")) {
-                gameState.inventory.push("grenade");
-                updateInventoryLabel();
-                add([
-                    text("Grenade ready!", { size: 24 }),
-                    pos(center().x, height() - 100),
-                    anchor("center"),
-                    color(255, 0, 0),
-                    fixed(),
-                    z(101),
-                    lifespan(2),
-                ]);
-            }
-        } else if (obj.itemName === "museum") {
-            if (!gameState.inventory.includes("map")) {
-                gameState.inventory.push("map");
-                updateInventoryLabel();
-                add([
-                    text("Map acquired!", { size: 24 }),
-                    pos(center().x, height() - 100),
-                    anchor("center"),
-                    color(0, 255, 0),
-                    fixed(),
-                    z(101),
-                    lifespan(2),
-                ]);
-            }
-        } else if (obj.itemName === "subway") {
-            // Move player vertically to opposite quarter, animate at 2x speed
-            let targetY;
-            if (player.pos.y < mapHeight / 2) {
-                targetY = mapHeight * 0.75;
-            } else {
-                targetY = mapHeight * 0.25;
-            }
-            const moveDist = Math.abs(player.pos.y - targetY);
-            const moveTime = moveDist / (2 * 240); // 2x walking speed
-            const startY = player.pos.y;
-            const startTime = time();
-            onUpdate("subwayMove", () => {
-                const t = Math.min((time() - startTime) / moveTime, 1);
-                player.pos.y = startY + (targetY - startY) * t;
-                console.log('Subway move update:', t, player.pos.y);
-                if (t >= 1) {
-                    player.pos.y = targetY;
-                    offUpdate("subwayMove");
-                }
-            });
-            // Remove devil if present
-            if (gameState.devil) {
-                destroy(gameState.devil);
-                gameState.devil = null;
-                if (gameState.devilMusic) gameState.devilMusic.stop();
-            }
-            add([
-                text("Next stop, fun!", { size: 24 }),
-                pos(center().x, height() - 100),
-                anchor("center"),
-                color(0, 255, 255),
-                fixed(),
-                z(101),
-                lifespan(2),
+                color(255, 0, 0),
+                fixed()
             ]);
         }
-        // Taxi block moved out of subway block
-        else if (obj.itemName === "taxi") {
-            // Remove devil if present
-            if (gameState.devil) {
-                destroy(gameState.devil);
-                gameState.devil = null;
-                if (gameState.devilMusic) gameState.devilMusic.stop();
-            }
-            add([
-                text("Escaped via taxi!", { size: 24 }),
-                pos(center().x, height() - 100),
-                anchor("center"),
-                color(0, 255, 255),
-                fixed(),
-                z(101),
-                lifespan(2),
-            ]);
-        }
-        if (obj.itemName && cuteMessages[obj.itemName]) {
-            popupLabel.text = cuteMessages[obj.itemName];
-            popupLabel.hidden = false;
-            wait(2, () => {
-                popupLabel.hidden = true;
-            });
-        }
+    };
+
+    // Initialize game and expose all functions globally
+    const k = kaboom({
+        width: 1024,
+        height: 768,
+        background: [0, 0, 0],
+        global: true,
+        debug: true
     });
 
-    // ===== DEVIL SPAWN AND UPDATE LOGIC =====
-    onUpdate(() => {
-        // Devil spawn logic
-        const now = time();
-        if (!gameState.devil && !gameState.devilDisabled && now - gameState.lastDevilSpawn > DEVIL_MIN_INTERVAL && Math.random() < DEVIL_SPAWN_CHANCE) {
-            gameState.devil = add([
-                sprite("devil", { width: 64, height: 64 }),
-                pos(rand(0, mapWidth - 100), rand(0, mapHeight - 100)),
-                area(),
-                z(2),
-                "devil",
-            ]);
-            gameState.devilSpawnedAt = now;
-            gameState.lastDevilSpawn = now;
-            // Play dark music
-            gameState.devilMusic = play("dark", {
-                volume: 0.5,
-                loop: true,
-            });
-        }
-        // Devil update logic
-        if (gameState.devil) {
-            // Move devil towards player
-            const dx = player.pos.x - gameState.devil.pos.x;
-            const dy = player.pos.y - gameState.devil.pos.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist > 0) {
-                const moveX = (dx / dist) * DEVIL_SPEED;
-                const moveY = (dy / dist) * DEVIL_SPEED;
-                gameState.devil.move(moveX, moveY);
-            }
-            // Check collision with player
-            if (gameState.devil.isColliding(player)) {
-                if (gameState.inventory.includes("grenade")) {
-                    // Use grenade
-                    gameState.inventory = gameState.inventory.filter(item => item !== "grenade");
-                    updateInventoryLabel();
-                    add([
-                        rect(width(), height()),
-                        pos(0, 0),
-                        color(255, 255, 255),
-                        fixed(),
-                        z(102),
-                        lifespan(0.5),
-                    ]);
-                    play("boom");
-                    destroy(gameState.devil);
-                    gameState.devil = null;
-                    gameState.devilDisabled = true;
-                    if (gameState.devilMusic) gameState.devilMusic.stop();
-                    playMusic("bgm");
-                } else {
-                    // Player caught by devil
-                    gameState.vibes -= DEVIL_VIBES_PENALTY;
-                    updateVibesDisplay();
-                    play("negative");
-                    destroy(gameState.devil);
-                    gameState.devil = null;
-                    if (gameState.devilMusic) gameState.devilMusic.stop();
-                    playMusic("bgm");
-                }
-            }
-            // Devil lifespan
-            if (now - gameState.devilSpawnedAt > DEVIL_LIFESPAN) {
-                destroy(gameState.devil);
-                gameState.devil = null;
-                if (gameState.devilMusic) gameState.devilMusic.stop();
-                playMusic("bgm");
-            }
-        }
-    });
-
-    // ===== Lose Condition =====
-
-    onUpdate(() => {
-        updateSunEffect();
-        
-        if (gameState.vibes >= WIN_VIBES) {
-            gameState.gameOver = true;
-            gameState.resultText = "win";
-            go("win", { vibes: gameState.vibes });
-        } else if (gameState.vibes <= LOSE_VIBES) {
-            gameState.gameOver = true;
-            gameState.resultText = "lose";
-            go("lose", { vibes: gameState.vibes });
-        }
-    });
-
-    // Helper function to spawn random items at random intervals
-    function spawnRandomly() {
-        function spawnAndSchedule() {
-            const item = spawnRandomItem();
-            console.log('spawnAndSchedule got:', item);
-            if (item && item.name && item.points !== undefined) {
-                if (item.name === "dog") {
-                    spawnDogWithPoopTimer(); // random position
-                } else {
-                    spawnItem(item.name, item.points);
-                }
-            }
-            // Schedule next spawn
-            const nextTime = rand(ITEM_SPAWN_INTERVAL_MIN, ITEM_SPAWN_INTERVAL_MAX);
-            wait(nextTime, spawnAndSchedule);
-        }
-        spawnAndSchedule();
-    }
-});
-
-// ================================
-// 6. LOSE SCREEN
-// ================================
-
-scene("lose", (data) => {
-    add([
-        sprite("lose_screen", { width: width(), height: height() }),
-        pos(0, 0),
-    ]);
-    add([
-        text("Final Vibes: " + data.vibes, 32),
-        pos(center()),
-        anchor("center"),
-    ]);
-    add([
-        text("Game Over", { size: 48 }),
-        pos(center().x, center().y - 50),
-        anchor("center"),
-        color(255, 0, 0),
-        fixed(),
-        z(100),
-    ]);
-    const restartButton = add([
-        text("Restart", { size: 24 }),
-        pos(center().x, center().y + 50),
-        anchor("center"),
-        color(255, 255, 255),
-        fixed(),
-        z(100),
-        area(),
-        "restartButton",
-    ]);
-    onClick("restartButton", () => {
-        go("start");
-    });
-});
-
-// Add win scene
-scene("win", (data) => {
-    add([
-        sprite("win_screen", { width: width(), height: height() }),
-        pos(0, 0),
-    ]);
-    add([
-        text("You Win! Final Vibes: " + data.vibes, 32),
-        pos(center()),
-        anchor("center"),
-    ]);
-    add([
-        text("Game Over", { size: 48 }),
-        pos(center().x, center().y - 50),
-        anchor("center"),
-        color(255, 0, 0),
-        fixed(),
-        z(100),
-    ]);
-    const restartButton = add([
-        text("Restart", { size: 24 }),
-        pos(center().x, center().y + 50),
-        anchor("center"),
-        color(255, 255, 255),
-        fixed(),
-        z(100),
-        area(),
-        "restartButton",
-    ]);
-    onClick("restartButton", () => {
-        go("start");
-    });
-});
-
-// ================================
-// 7. START THE GAME
-// ================================
-
-go("start");
-
+    // Start loading assets
+    loadAssets();
 </script>
 </body>
 </html>
