@@ -1,5 +1,4 @@
-import kaboom from 'https://unpkg.com/kaboom@3000.0.0/dist/kaboom.mjs';
-const { add, text, pos, anchor, color, fixed, z, lifespan, time, wait, center, height } = kaboom;
+import { add, text, pos, anchor, color, fixed, z, lifespan, time, wait, center, height } from '../../context.js';
 import { BaseItem } from './BaseItem.js';
 import { EDIBLE_DURATION, SUN_DURATION } from '../../config/constants.js';
 

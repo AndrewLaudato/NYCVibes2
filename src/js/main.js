@@ -1,24 +1,53 @@
-import { createStartScene } from './scenes/start';
-import { createGameScene } from './scenes/game';
-import { createEndScene } from './scenes/end';
+import { loadSprite, loadSound, scene, go } from './context.js';
+import { createStartScene } from './scenes/start.js';
+import { createMainScene } from './scenes/city.js';
+import { createEndScene } from './scenes/end.js';
 import { WIN_VIBES, LOSE_VIBES } from './config/constants.js';
-import { add, sprite, text, pos, anchor, color, fixed, z, rect, area, onKeyDown, onUpdate, camPos, play } from 'https://unpkg.com/kaboom@3000.0.0/dist/kaboom.mjs';
-import { width, height, center } from 'https://unpkg.com/kaboom@3000.0.0/dist/kaboom.mjs';
+import { add, sprite, text, pos, anchor, color, fixed, z, rect, area, onKeyDown, onUpdate, camPos, play, width, height, center } from './context.js';
 
-// Load assets
-loadSprite('player', 'assets/sprites/player.png');
-loadSprite('devil', 'assets/sprites/devil.png');
-loadSprite('background', 'assets/sprites/background.png');
-loadSprite('startButton', 'assets/sprites/startButton.png');
-loadSprite('restartButton', 'assets/sprites/restartButton.png');
-loadSprite('food', 'assets/sprites/food.png');
-loadSprite('special', 'assets/sprites/special.png');
-loadSprite('transport', 'assets/sprites/transport.png');
+// Load all assets that actually exist in static/
+Promise.all([
+    // Sprites
+    loadSprite("start", "static/start_screen.jpg"),
+    loadSprite("win_screen", "static/win_screen.jpg"),
+    loadSprite("lose_screen", "static/lose_screen.jpg"),
+    loadSprite("map", "static/NYCmap.jpg"),
+    loadSprite("player", "static/KJK.png"),
+    loadSprite("devil", "static/devil.png"),
+    loadSprite("bagels", "static/bagels.png"),
+    loadSprite("coffee", "static/coffee.png"),
+    loadSprite("construction", "static/construction.png"),
+    loadSprite("dog", "static/dog.png"),
+    loadSprite("edible", "static/edible.png"),
+    loadSprite("grenade", "static/grenade.png"),
+    loadSprite("homeless", "static/homeless.png"),
+    loadSprite("museum", "static/museum.png"),
+    loadSprite("pizza", "static/pizza.png"),
+    loadSprite("poop", "static/poop.png"),
+    loadSprite("pretzel", "static/pretzel.png"),
+    loadSprite("rain", "static/rain.png"),
+    loadSprite("subway", "static/subway.png"),
+    loadSprite("sun", "static/sun.png"),
+    loadSprite("taxi", "static/taxi.png"),
+    loadSprite("tourist", "static/tourist.png"),
+    // Sounds
+    loadSound("bgm", "static/bg_music.mp3"),
+    loadSound("positive", "static/positive.wav"),
+    loadSound("negative", "static/negative.wav"),
+    loadSound("dark", "static/dark.mp3"),
+    loadSound("boom", "static/boom.wav"),
+    loadSound("boo", "static/boo.mp3"),
+]).then(() => {
+    // Register scenes
+    scene("start", createStartScene());
+    scene("game", createMainScene());
+    scene("win", createEndScene());
+    scene("lose", createEndScene());
 
-// Create scenes
-createStartScene();
-createGameScene();
-createEndScene();
-
-// Start with the start scene
-go('start'); 
+    // Start the game
+    go("start");
+}).catch(error => {
+    // Handle asset loading errors
+    console.error("Failed to load assets:", error);
+    // Optionally show an error message using Kaboom's add/text
+}); 

@@ -1,5 +1,4 @@
-import kaboom from 'https://unpkg.com/kaboom@3000.0.0/dist/kaboom.mjs';
-const { add, text, pos, anchor, color, fixed, z, lifespan, time, center, height, onUpdate, offUpdate } = kaboom;
+import { add, text, pos, anchor, color, fixed, z, lifespan, time, center, height, onUpdate, offUpdate } from '../../context.js';
 import { BaseItem } from './BaseItem.js';
 import { PLAYER_SPEED, mapWidth, mapHeight } from '../../config/constants.js';
 

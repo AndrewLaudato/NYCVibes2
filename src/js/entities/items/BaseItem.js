@@ -1,3 +1,4 @@
+import { add, sprite, pos, rgb, scale, opacity, z, destroy, play } from '../../context.js';
 import { mapWidth, mapHeight, DOG_POOP_TIMER } from '../../config/constants.js';
 import { ITEM_MESSAGES } from '../../config/messages.js';
 

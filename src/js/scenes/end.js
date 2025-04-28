@@ -1,5 +1,8 @@
-import kaboom from 'https://unpkg.com/kaboom@3000.0.0/dist/kaboom.mjs';
-const { add, sprite, text, pos, anchor, color, fixed, z, area, width, height, center } = kaboom;
+// import kaboom from 'https://unpkg.com/kaboom@3000.0.0/dist/kaboom.mjs';
+// const { add, sprite, text, pos, anchor, color, fixed, z, area, width, height, center } = kaboom;
+
+// Instead, import the kaboom context from main.js
+import { add, sprite, text, pos, anchor, color, fixed, z, area, width, height, center, destroy, go, onMousePress } from '../context.js';
 
 export function createEndScene() {
     return (isWin) => {

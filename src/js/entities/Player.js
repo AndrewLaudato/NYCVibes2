@@ -1,4 +1,5 @@
 import { PLAYER_SPEED, PLAYER_WIDTH, PLAYER_HEIGHT, mapWidth, mapHeight } from '../config/constants.js';
+import { add, sprite, pos, destroy } from '../context.js';
 
 const PIXELS_PER_MILE = 960; // 1 mile = 960 pixels
 const VIBE_MILE_INCREMENT = 0.5; // 1 vibe per 0.5 miles

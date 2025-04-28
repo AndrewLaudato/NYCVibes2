@@ -1,3 +1,4 @@
+import { add, sprite, text, pos, color, fixed, z, rect, area, onUpdate, camPos, play, width, height, center, rgb, opacity, lifespan } from '../context.js';
 import { 
     mapWidth, mapHeight, UI_HEIGHT, UI_FONT_SIZE, UI_TEXT_COLOR, UI_BG_COLOR,
     PLAYER_SPEED, WIN_VIBES, LOSE_VIBES, ITEM_SPAWN_INTERVAL_MIN, ITEM_SPAWN_INTERVAL_MAX, 

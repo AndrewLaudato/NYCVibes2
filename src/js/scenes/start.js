@@ -3,14 +3,15 @@ export function createStartScene() {
         let startScreen;
         let cleanupFunctions = [];
 
-        // Create start screen background
+        // Create start screen background, ensure it's centered and fits the viewport
         startScreen = add([
-            sprite("start"),
+            sprite("start", { width: width(), height: height() }),
             pos(center()),
             anchor("center"),
-            scale(1),
+            scale(Math.min(width() / 1024, height() / 768)), // scale to fit if needed
             fixed(),
-            z(0)
+            z(0),
+            // Uncomment for debug: outline(4, rgb(255,0,0))
         ]);
 
         // Add click handler
