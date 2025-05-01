@@ -35,6 +35,8 @@ export const {
     onKeyDown,
     onKeyPress,
     onMousePress,
+    isKeyDown,
+    vec2,
     width,
     height,
     camPos,

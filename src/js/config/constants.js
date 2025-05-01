@@ -36,7 +36,7 @@ export const UI_TEXT_COLOR = [0, 0, 139]; // Dark blue for text
 export const UI_BG_COLOR = [255, 255, 255]; // White background
 
 // Speed constants
-export const DEVIL_SPEED = 250;    // Devil movement speed
+export const DEVIL_SPEED = 150;    // Devil movement speed
 
 // Visual effect constants
 export const SUN_COLOR = [255, 255, 180]; // Yellow tint for sun effect
