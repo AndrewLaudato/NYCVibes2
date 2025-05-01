@@ -1,8 +1,6 @@
-// import kaboom from 'https://unpkg.com/kaboom@3000.0.0/dist/kaboom.mjs';
-// const { add, sprite, text, pos, anchor, color, fixed, z, area, width, height, center } = kaboom;
+// src/js/scenes/end.js
 
-// Instead, import the kaboom context from main.js
-import { add, sprite, text, pos, anchor, color, fixed, z, area, width, height, center, destroy, go, onMousePress } from '../context.js';
+import { add, sprite, pos, fixed, z, width, height, center, destroy, go, onMousePress } from "../context.js";
 
 export function createEndScene() {
     return (isWin) => {
@@ -15,7 +13,7 @@ export function createEndScene() {
         ]);
 
         // Restart game on click
-        onMousePress(() => {
+        const unbind = onMousePress(() => {
             go("start");
         });
 
@@ -23,7 +21,8 @@ export function createEndScene() {
         return {
             cleanup() {
                 destroy(endScreen);
+                unbind(); // Cleanly remove mouse listener
             }
         };
     };
-} 
+}

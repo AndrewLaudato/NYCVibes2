@@ -1,41 +1,47 @@
+// src/js/scenes/start.js
+
+import {
+    add, sprite, pos, anchor, scale, fixed, z, width, height, center, onMousePress, onKeyPress, go
+} from "../context.js";
+
 export function createStartScene() {
     return () => {
         let startScreen;
         let cleanupFunctions = [];
 
-        // Create start screen background, ensure it's centered and fits the viewport
+        // Create start screen background, centered and scaled
         startScreen = add([
             sprite("start", { width: width(), height: height() }),
             pos(center()),
             anchor("center"),
-            scale(Math.min(width() / 1024, height() / 768)), // scale to fit if needed
+            scale(Math.min(width() / 1024, height() / 768)), // Scale to fit screen
             fixed(),
             z(0),
-            // Uncomment for debug: outline(4, rgb(255,0,0))
         ]);
 
-        // Add click handler
+        // Mouse click handler -> start game
         const clickHandler = onMousePress(() => {
-            go("game");
+            go("city");
         });
         cleanupFunctions.push(() => clickHandler.cancel());
 
-        // Add key handler
+        // Spacebar key handler -> start game
         const keyHandler = onKeyPress("space", () => {
-            go("game");
+            go("city");
         });
         cleanupFunctions.push(() => keyHandler.cancel());
 
         // Return cleanup function
         return {
             cleanup() {
-                // Clean up all event listeners
-                cleanupFunctions.forEach(cleanup => cleanup());
+                cleanupFunctions.forEach((fn) => fn());
                 cleanupFunctions = [];
 
-                // Remove all game objects
-                if (startScreen) startScreen.destroy();
+                if (startScreen) {
+                    startScreen.destroy();
+                    startScreen = null;
+                }
             }
         };
     };
-} 
+}

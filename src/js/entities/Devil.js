@@ -1,131 +1,85 @@
-import { 
-    DEVIL_SPEED, 
-    DEVIL_VIBES_PENALTY, 
-    DEVIL_MIN_INTERVAL,
-    DEVIL_LIFESPAN,
-    DEVIL_SPAWN_CHANCE,
-    DEVIL_INITIAL_DELAY,
-    mapWidth, 
-    mapHeight 
-} from '../config/constants.js';
-import { play } from '../context.js';
+// src/js/entities/Devil.js
 
-export class Devil {
-    constructor(gameState, backgroundMusicHandle) {
-        this.gameState = gameState;
-        this.sprite = null;
-        this.darkMusic = null;
-        this.backgroundMusic = backgroundMusicHandle;
-        this.spawnedAt = 0;
-        this.initialSpawnTime = 0;
+import { add, sprite, area, body, move, destroy, pos, scale, z, play, loadSprite, width, height, rand } from "../context.js";
+import { context } from "../context.js";
+import { DEVIL_SPAWN_CHANCE, DEVIL_INITIAL_DELAY } from "../config/constants.js";
+
+let explosionSpriteLoaded = false;
+
+function loadExplosionSprite() {
+    if (!explosionSpriteLoaded) {
+        loadSprite("explosion", "static/explosion.png");
+        explosionSpriteLoaded = true;
+    }
+}
+
+export function spawnDevil() {
+    if (context.devilPermanentlyDead || context.devil) {
+        return; // Already dead or already active
     }
 
-    spawn(player) {
-        if (!player || this.sprite) return;
+    if (Math.random() < DEVIL_SPAWN_CHANCE) {
+        console.log("Devil spawned!");
 
-        const angle = Math.random() * Math.PI * 2;
-        const distance = 300 + Math.random() * 200;
-        const x = player.pos.x + Math.cos(angle) * distance;
-        const y = player.pos.y + Math.sin(angle) * distance;
-
-        const boundedX = Math.max(0, Math.min(x, mapWidth - 64));
-        const boundedY = Math.max(0, Math.min(y, mapHeight - 64));
-
-        this.sprite = add([
-            sprite("devil", { width: 64, height: 64 }),
-            pos(boundedX, boundedY),
+        context.devil = add([
+            sprite("devil"),
+            pos(rand(0, width()), rand(0, height())),
             area(),
-            z(2),
+            body(),
+            scale(1.2),
             "devil",
-            "noControl"
+            z(10),
         ]);
 
-        this.spawnedAt = time();
-        this.gameState.devil = this;
-        this.playDarkMusic();
+        play("dark", { loop: true });
+    } else {
+        console.log("Devil spawn chance failed. Will retry later.");
+        scheduleDevilSpawn();
+    }
+}
+
+export function scheduleDevilSpawn() {
+    if (context.devilPermanentlyDead || context.devilSpawnTimer) {
+        return;
     }
 
-    playDarkMusic() {
-        if (this.backgroundMusic && typeof this.backgroundMusic.stop === 'function') {
-            console.log('Stopping background music');
-            this.backgroundMusic.stop();
-        }
-        console.log('Playing dark music');
-        this.darkMusic = play("dark", { volume: 1.0, loop: true });
-        console.log('Dark music handle:', this.darkMusic);
+    context.devilSpawnTimer = setTimeout(() => {
+        spawnDevil();
+    }, DEVIL_INITIAL_DELAY);
+}
+
+export function destroyDevil(permanently = false) {
+    if (context.devil) {
+        destroy(context.devil);
+        context.devil = null;
     }
 
-    stopDarkMusic() {
-        if (this.darkMusic && typeof this.darkMusic.stop === 'function') {
-            console.log('Stopping dark music');
-            this.darkMusic.stop();
-            this.darkMusic = null;
+    play("background", { loop: true });
+
+    if (permanently) {
+        context.devilPermanentlyDead = true;
+        if (context.devilSpawnTimer) {
+            clearTimeout(context.devilSpawnTimer);
+            context.devilSpawnTimer = null;
         }
-        if (this.backgroundMusic) {
-            console.log('Restarting background music');
-            this.backgroundMusic = play("bgm", { volume: 0.5, loop: true });
-        }
+    } else {
+        scheduleDevilSpawn();
     }
+}
 
-    update(player) {
-        if (!this.sprite || !this.sprite.exists() || !player) return;
+export function triggerExplosion(atPos) {
+    loadExplosionSprite();
 
-        const dx = player.pos.x - this.sprite.pos.x;
-        const dy = player.pos.y - this.sprite.pos.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
+    const explosion = add([
+        sprite("explosion"),
+        pos(atPos),
+        scale(1),
+        z(20),
+    ]);
 
-        if (dist > 0) {
-            const moveX = (dx / dist) * DEVIL_SPEED;
-            const moveY = (dy / dist) * DEVIL_SPEED;
-            this.sprite.move(moveX, moveY);
-        }
+    play("boom");
 
-        if (time() - this.spawnedAt > DEVIL_LIFESPAN) {
-            this.destroy(false);
-        }
-    }
-
-    handleCollision(player) {
-        if (!this.sprite || !this.sprite.exists()) return;
-
-        if (this.gameState.inventory.includes("grenade")) {
-            this.gameState.inventory = this.gameState.inventory.filter(item => item !== "grenade");
-            add([
-                circle(20),
-                pos(this.sprite.pos),
-                rgb(255, 0, 0),
-                scale(1),
-                opacity(0.8),
-                z(100),
-                {
-                    update() {
-                        this.scale += 0.5;
-                        this.opacity -= 0.05;
-                        if (this.opacity <= 0) {
-                            destroy(this);
-                        }
-                    }
-                }
-            ]);
-            play("boom");
-            this.destroy(true);
-        } else {
-            this.gameState.vibes = Math.max(0, this.gameState.vibes - DEVIL_VIBES_PENALTY);
-            play("negative");
-            this.destroy(false);
-            this.gameState.lastDevilDestroyed = time();
-        }
-    }
-
-    destroy(permanent = false) {
-        if (this.sprite) {
-            destroy(this.sprite);
-            this.sprite = null;
-        }
-        this.stopDarkMusic();
-        if (permanent) {
-            this.isDestroyed = true;
-        }
-        this.gameState.devil = null;
-    }
+    wait(context.explosionDuration, () => {
+        destroy(explosion);
+    });
 }

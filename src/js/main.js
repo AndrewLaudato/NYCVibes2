@@ -1,13 +1,12 @@
-import { loadSprite, loadSound, scene, go } from './context.js';
-import { createStartScene } from './scenes/start.js';
-import { createMainScene } from './scenes/city.js';
-import { createEndScene } from './scenes/end.js';
-import { WIN_VIBES, LOSE_VIBES } from './config/constants.js';
-import { add, sprite, text, pos, anchor, color, fixed, z, rect, area, onKeyDown, onUpdate, camPos, play, width, height, center } from './context.js';
+// src/js/main.js
 
-// Load all assets that actually exist in static/
+import { loadSprite, loadSound, scene, go } from "./context.js";
+import { createStartScene } from "./scenes/start.js";
+import { createMainScene } from "./scenes/city.js";
+import { createEndScene } from "./scenes/end.js";
+
+// Load all assets that exist in /static
 Promise.all([
-    // Sprites
     loadSprite("start", "static/start_screen.jpg"),
     loadSprite("win_screen", "static/win_screen.jpg"),
     loadSprite("lose_screen", "static/lose_screen.jpg"),
@@ -30,24 +29,22 @@ Promise.all([
     loadSprite("sun", "static/sun.png"),
     loadSprite("taxi", "static/taxi.png"),
     loadSprite("tourist", "static/tourist.png"),
-    // Sounds
-    loadSound("bgm", "static/bg_music.mp3"),
+    loadSprite("explosion", "static/explosion.png"),
+    loadSound("background", "static/bg_music.mp3"),
+    loadSound("dark", "static/dark.mp3"),
     loadSound("positive", "static/positive.wav"),
     loadSound("negative", "static/negative.wav"),
-    loadSound("dark", "static/dark.mp3"),
     loadSound("boom", "static/boom.wav"),
     loadSound("boo", "static/boo.mp3"),
 ]).then(() => {
     // Register scenes
     scene("start", createStartScene());
-    scene("game", createMainScene());
-    scene("win", createEndScene());
-    scene("lose", createEndScene());
+    scene("city", createMainScene());
+    scene("end", createEndScene());
 
-    // Start the game
+    // Start the game at start scene
     go("start");
 }).catch(error => {
-    // Handle asset loading errors
     console.error("Failed to load assets:", error);
-    // Optionally show an error message using Kaboom's add/text
-}); 
+    // Optional: show a nice error screen
+});

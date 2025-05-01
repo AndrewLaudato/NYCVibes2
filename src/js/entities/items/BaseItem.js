@@ -1,11 +1,16 @@
-import { add, sprite, pos, rgb, scale, opacity, z, destroy, play } from '../../context.js';
-import { mapWidth, mapHeight, DOG_POOP_TIMER } from '../../config/constants.js';
-import { ITEM_MESSAGES } from '../../config/messages.js';
+// src/js/entities/BaseItem.js
+
+import {
+    add, sprite, pos, area, rgb, scale, opacity, z, destroy, play, wait
+} from "../../context.js";
+import { mapWidth, mapHeight, DOG_POOP_TIMER } from "../../config/constants.js";
+import { ITEM_MESSAGES } from "../../config/messages.js";
+import { context } from "../../context.js"; // (optional, if needed later for global state)
 
 export class BaseItem {
     constructor(type, gameState, player) {
         this.type = type;
-        this.gameState = gameState;
+        this.gameState = gameState;  // ✅ corrected typo
         this.player = player;
         this.sprite = null;
     }
@@ -46,10 +51,10 @@ export class BaseItem {
 
     transformToPoop() {
         if (this.sprite) {
-            const pos = this.sprite.pos;
+            const currentPos = this.sprite.pos;
             this.destroy();
             this.type = "poop";
-            this.spawnAt(pos.x, pos.y);
+            this.spawnAt(currentPos.x, currentPos.y);
         }
     }
 
@@ -61,10 +66,11 @@ export class BaseItem {
             this.player.showMessage(msg);
         }
 
-        // Play sound based on item type
+        // Play sound and adjust vibes
         let positivePoints = 5;
         if (this.gameState.sunDoublePoints) positivePoints *= 2;
-        switch(this.type) {
+
+        switch (this.type) {
             case "coffee":
             case "pizza":
             case "pretzel":
@@ -74,23 +80,23 @@ export class BaseItem {
             case "taxi":
             case "subway":
                 play("positive");
-                this.gameState.vibes += positivePoints;  // Positive items give 5 or 10 vibes
+                this.gameState.vibes += positivePoints;
                 break;
             case "poop":
             case "construction":
             case "rain":
             case "tourist":
                 play("negative");
-                this.gameState.vibes -= 5;  // Negative items take 5 vibes
+                this.gameState.vibes -= 5;
                 break;
             case "dog":
                 play("positive");
-                this.gameState.vibes += (this.gameState.sunDoublePoints ? 20 : 10);  // Dogs give 10 or 20 vibes
+                this.gameState.vibes += (this.gameState.sunDoublePoints ? 20 : 10);
                 break;
         }
 
-        // Handle special effects and inventory items
-        switch(this.type) {
+        // Special item effects
+        switch (this.type) {
             case "museum":
                 if (!this.gameState.inventory.includes("map")) {
                     this.gameState.inventory.push("map");
@@ -132,4 +138,4 @@ export class BaseItem {
     exists() {
         return this.sprite && this.sprite.exists();
     }
-} 
+}

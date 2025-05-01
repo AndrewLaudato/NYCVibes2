@@ -1,6 +1,13 @@
-import { INITIAL_VIBES, WIN_VIBES, LOSE_VIBES, EDIBLE_DURATION, SUN_DURATION, DEVIL_MIN_INTERVAL } from '../config/constants.js';
+// src/js/utils/gameControl.js
 
-export class GameState {
+import {
+    play, time
+} from "../context.js";
+import {
+    INITIAL_VIBES, WIN_VIBES, LOSE_VIBES, EDIBLE_DURATION, SUN_DURATION, DEVIL_MIN_INTERVAL
+} from "../config/constants.js";
+
+export class Gamestate {
     constructor() {
         this.reset();
     }
@@ -89,8 +96,34 @@ export class GameState {
 
     canSpawnDevil() {
         const now = time();
-        return !this.devil && 
-               !this.devilDisabled && 
+        return !this.devil &&
+               !this.devilDisabled &&
                now - this.lastDevilSpawn > DEVIL_MIN_INTERVAL;
     }
-} 
+}
+
+// --- Sound control helpers ---
+
+export function playBackgroundMusic() {
+    play("background", { loop: true });
+}
+
+export function playDarkMusic() {
+    play("dark", { loop: true });
+}
+
+export function playPositiveSound() {
+    play("positive");
+}
+
+export function playNegativeSound() {
+    play("negative");
+}
+
+export function playBoomSound() {
+    play("boom");
+}
+
+export function playBooSound() {
+    play("boo");
+}

@@ -1,10 +1,17 @@
-import { add, text, pos, anchor, color, fixed, z, lifespan, time, wait, center, height } from '../../context.js';
-import { BaseItem } from './BaseItem.js';
-import { EDIBLE_DURATION, SUN_DURATION } from '../../config/constants.js';
+// src/js/entities/SpecialItem.js
+
+import {
+    add, text as addText, pos, anchor, color, fixed, z, lifespan, time, wait, center, height
+} from "../../context.js";
+import { BaseItem } from "./BaseItem.js";
+import { EDIBLE_DURATION, SUN_DURATION } from "../../config/constants.js";
+import { context } from "../../context.js"; // (Optional if needed later)
 
 export class SpecialItem extends BaseItem {
     constructor(config) {
-        super(config);
+        super(config.type, config.gameState, config.player);
+        this.effect = config.effect;
+        this.duration = config.duration || 0;
         this.effectStartTime = 0;
         this.isActive = false;
     }
@@ -13,17 +20,17 @@ export class SpecialItem extends BaseItem {
         this.effectStartTime = time();
         this.isActive = true;
 
-        switch(this.effect) {
-            case 'edible':
+        switch (this.effect) {
+            case "edible":
                 gameState.edibleTimers.push(time());
                 this.showMessage("Feeling funny...", [255, 100, 255]);
                 break;
-            case 'sun':
+            case "sun":
                 gameState.sunActive = true;
                 gameState.sunTimer = time();
                 this.showMessage("Sunshine boost activated!", [255, 255, 0]);
                 break;
-            // Add more effects here
+            // Add more effects here if needed
         }
 
         if (this.duration > 0) {
@@ -33,12 +40,14 @@ export class SpecialItem extends BaseItem {
 
     removeEffect(gameState) {
         this.isActive = false;
-        
-        switch(this.effect) {
-            case 'edible':
-                gameState.edibleTimers = gameState.edibleTimers.filter(t => time() - t < EDIBLE_DURATION);
+
+        switch (this.effect) {
+            case "edible":
+                gameState.edibleTimers = gameState.edibleTimers.filter(
+                    (t) => time() - t < EDIBLE_DURATION
+                );
                 break;
-            case 'sun':
+            case "sun":
                 if (time() - gameState.sunTimer > SUN_DURATION) {
                     gameState.sunActive = false;
                 }
@@ -46,19 +55,4 @@ export class SpecialItem extends BaseItem {
         }
     }
 
-    showMessage(text, color) {
-        add([
-            text(text, { size: 24 }),
-            pos(center().x, height() - 100),
-            anchor("center"),
-            color(color[0], color[1], color[2]),
-            fixed(),
-            z(101),
-            lifespan(2),
-        ]);
-    }
-
-    isEffectActive() {
-        return this.isActive && (this.duration === 0 || time() - this.effectStartTime < this.duration);
-    }
-} 
+    showMessage(message, colorValue) {

@@ -1,27 +1,31 @@
-import { add, text, pos, anchor, color, fixed, z, lifespan, time, center, height, onUpdate, offUpdate } from '../../context.js';
-import { BaseItem } from './BaseItem.js';
-import { PLAYER_SPEED, mapWidth, mapHeight } from '../../config/constants.js';
+// src/js/entities/TransportationItem.js
+
+import {
+    add, text as addText, pos, anchor, color, fixed, z, lifespan, time, center, height, onUpdate, offUpdate, destroy
+} from "../../context.js";
+import { BaseItem } from "./BaseItem.js";
+import { PLAYER_SPEED, mapWidth, mapHeight } from "../../config/constants.js";
+import { context } from "../../context.js"; // Important!
 
 export class TransportationItem extends BaseItem {
     constructor(config) {
-        super(config);
+        super(config.type, config.gameState, config.player);
         this.transportType = config.transportType; // 'subway', 'taxi', etc.
         this.speedMultiplier = config.speedMultiplier || 2;
     }
 
     transportPlayer(player, gameState) {
-        switch(this.transportType) {
-            case 'subway':
+        switch (this.transportType) {
+            case "subway":
                 this.handleSubwayTransport(player, gameState);
                 break;
-            case 'taxi':
+            case "taxi":
                 this.handleTaxiTransport(player, gameState);
                 break;
         }
     }
 
     handleSubwayTransport(player, gameState) {
-        // Move player vertically to opposite quarter
         let targetY;
         if (player.pos.y < mapHeight / 2) {
             targetY = mapHeight * 0.75;
@@ -37,7 +41,7 @@ export class TransportationItem extends BaseItem {
         onUpdate("subwayMove", () => {
             const t = Math.min((time() - startTime) / moveTime, 1);
             player.pos.y = startY + (targetY - startY) * t;
-            
+
             if (t >= 1) {
                 player.pos.y = targetY;
                 offUpdate("subwayMove");
@@ -48,25 +52,27 @@ export class TransportationItem extends BaseItem {
     }
 
     handleTaxiTransport(player, gameState) {
-        // Remove devil if present
-        if (gameState.devil) {
-            destroy(gameState.devil);
-            gameState.devil = null;
-            if (gameState.devilMusic) gameState.devilMusic.stop();
+        if (context.devil) {
+            destroy(context.devil);
+            context.devil = null;
+            // Optional: stop devil music if you have music control elsewhere
+            if (context.darkMusic) {
+                context.darkMusic.stop();
+            }
         }
 
         this.showMessage("Escaped via taxi!", [0, 255, 255]);
     }
 
-    showMessage(text, color) {
+    showMessage(messageText, colorValue) {
         add([
-            text(text, { size: 24 }),
+            addText(messageText, { size: 24 }),
             pos(center().x, height() - 100),
             anchor("center"),
-            color(color[0], color[1], color[2]),
+            color(colorValue[0], colorValue[1], colorValue[2]),
             fixed(),
             z(101),
             lifespan(2),
         ]);
     }
-} 
+}
