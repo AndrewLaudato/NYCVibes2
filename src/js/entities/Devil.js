@@ -1,8 +1,7 @@
 // src/js/entities/Devil.js
 
-import { add, sprite, area, body, move, destroy, pos, scale, z, play, loadSprite, width, height, rand } from "../context.js";
-import { context } from "../context.js";
-import { DEVIL_SPAWN_CHANCE, DEVIL_INITIAL_DELAY } from "../config/constants.js";
+import { add, sprite, area, body, move, destroy, pos, scale, z, play, loadSprite, width, height, rand, wait } from "../context.js";
+import { DEVIL_SPAWN_CHANCE, DEVIL_INITIAL_DELAY, MUSIC_ENABLED, PLAYER_WIDTH, PLAYER_HEIGHT } from "../config/constants.js";
 
 let explosionSpriteLoaded = false;
 
@@ -13,73 +12,90 @@ function loadExplosionSprite() {
     }
 }
 
-export function spawnDevil() {
-    if (context.devilPermanentlyDead || context.devil) {
-        return; // Already dead or already active
+export class Devil {
+    constructor(gameState, backgroundMusic) {
+        this.gameState = gameState;
+        this.backgroundMusic = backgroundMusic;
+        this.sprite = null;
+        this.darkMusic = null;
     }
 
-    if (Math.random() < DEVIL_SPAWN_CHANCE) {
-        console.log("Devil spawned!");
+    spawn(playerSprite) {
+        if (this.sprite) return;
 
-        context.devil = add([
-            sprite("devil"),
+        this.sprite = add([
+            sprite("devil", { width: PLAYER_WIDTH, height: PLAYER_HEIGHT }),
             pos(rand(0, width()), rand(0, height())),
             area(),
             body(),
-            scale(1.2),
             "devil",
             z(10),
         ]);
 
-        play("dark", { loop: true });
-    } else {
-        console.log("Devil spawn chance failed. Will retry later.");
-        scheduleDevilSpawn();
-    }
-}
-
-export function scheduleDevilSpawn() {
-    if (context.devilPermanentlyDead || context.devilSpawnTimer) {
-        return;
-    }
-
-    context.devilSpawnTimer = setTimeout(() => {
-        spawnDevil();
-    }, DEVIL_INITIAL_DELAY);
-}
-
-export function destroyDevil(permanently = false) {
-    if (context.devil) {
-        destroy(context.devil);
-        context.devil = null;
-    }
-
-    play("background", { loop: true });
-
-    if (permanently) {
-        context.devilPermanentlyDead = true;
-        if (context.devilSpawnTimer) {
-            clearTimeout(context.devilSpawnTimer);
-            context.devilSpawnTimer = null;
+        if (MUSIC_ENABLED) {
+            this.darkMusic = play("dark", { loop: true });
+            if (this.backgroundMusic) {
+                this.backgroundMusic.stop();
+            }
         }
-    } else {
-        scheduleDevilSpawn();
     }
-}
 
-export function triggerExplosion(atPos) {
-    loadExplosionSprite();
+    update(playerSprite) {
+        if (!this.sprite || !this.sprite.exists()) return;
 
-    const explosion = add([
-        sprite("explosion"),
-        pos(atPos),
-        scale(1),
-        z(20),
-    ]);
+        // Move towards player
+        const direction = playerSprite.pos.sub(this.sprite.pos).unit();
+        this.sprite.move(direction.scale(2));
+    }
 
-    play("boom");
+    handleCollision(playerSprite) {
+        if (!this.sprite || !this.sprite.exists()) return;
+        
+        // Reduce player's vibes
+        this.gameState.vibes -= 10;
+        play("negative");
+        
+        // Trigger explosion at devil's position
+        this.triggerExplosion(this.sprite.pos);
+        
+        // Destroy the devil
+        this.destroy(false);
+    }
 
-    wait(context.explosionDuration, () => {
-        destroy(explosion);
-    });
+    destroy(permanently = false) {
+        if (this.sprite) {
+            destroy(this.sprite);
+            this.sprite = null;
+        }
+
+        if (MUSIC_ENABLED) {
+            if (this.darkMusic) {
+                this.darkMusic.stop();
+            }
+            if (this.backgroundMusic) {
+                this.backgroundMusic.play();
+            }
+        }
+
+        if (permanently) {
+            this.gameState.devilPermanentlyDead = true;
+        }
+    }
+
+    triggerExplosion(atPos) {
+        loadExplosionSprite();
+
+        const explosion = add([
+            sprite("explosion"),
+            pos(atPos),
+            scale(1),
+            z(20),
+        ]);
+
+        play("boom");
+
+        wait(0.5, () => {
+            destroy(explosion);
+        });
+    }
 }

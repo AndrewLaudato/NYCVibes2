@@ -2,6 +2,9 @@
 export const mapWidth = 2400;
 export const mapHeight = 1800;
 
+// Audio settings
+export const MUSIC_ENABLED = false;  // Toggle for background and devil music
+
 // Player constants
 export const PLAYER_SPEED = 200;
 export const PLAYER_WIDTH = 50;

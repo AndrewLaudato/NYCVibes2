@@ -19,11 +19,11 @@ import {
     anchor,
     onKeyDown,
     rgb,
-    opacity,
     lifespan,
     wait,
     time,
     go,
+    k,
 } from '../context.js';
 
 import {
@@ -45,6 +45,7 @@ import {
     EDIBLE_COLORS,
     INITIAL_VIBES,
     GRENADE_FIRST_SPAWN_DELAY,
+    MUSIC_ENABLED
 } from '../config/constants.js';
 
 import { GameState } from '../utils/gameControl.js';
@@ -52,14 +53,22 @@ import { Player } from '../entities/Player.js';
 import { Devil } from '../entities/Devil.js';
 import { BaseItem } from '../entities/items/BaseItem.js';
 
+export const gameScene = createMainScene();
+
 export function createMainScene() {
     return () => {
         const gameState = new GameState();
         gameState.vibes = INITIAL_VIBES;
-        const backgroundMusic = play("background", {
-            volume: 0.5,
-            loop: true,
-        });
+        
+        let backgroundMusic = null;
+        // Only play background music if enabled
+        if (MUSIC_ENABLED) {
+            backgroundMusic = play("background", {
+                volume: 0.5,
+                loop: true,
+            });
+        }
+        
         const player = new Player(gameState);
         let gameStartTime = time();
         let canSpawnDevil = false;
@@ -80,7 +89,7 @@ export function createMainScene() {
             rect(width(), UI_HEIGHT),
             pos(0, 0),
             color(...UI_BG_COLOR),
-            opacity(1),
+            k.opacity(1),
             fixed(),
             z(99),
         ]);
@@ -265,7 +274,7 @@ export function createMainScene() {
                     rect(width(), height()),
                     pos(0, 0),
                     rgb(...SUN_COLOR),
-                    opacity(0.2),
+                    k.opacity(0.2),
                     fixed(),
                     z(98),
                     lifespan(0.1),
@@ -279,7 +288,7 @@ export function createMainScene() {
                     rect(width(), height()),
                     pos(0, 0),
                     rgb(...color),
-                    opacity(0.3),
+                    k.opacity(0.3),
                     fixed(),
                     z(98),
                     lifespan(0.1),

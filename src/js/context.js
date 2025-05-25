@@ -8,9 +8,16 @@ export const k = kaboom({
     height: 768,
     background: [0, 0, 0],
     global: false,
+    debug: true, // Enable debug mode to see any errors
+    clearColor: [0, 0, 0, 1],
+    scale: 1,
+    crisp: true,
+    canvas: document.getElementById("game"),
+    font: "Arial",
+    root: document.body,
 });
 
-// Destructure and export necessary functions, including 'dt'
+// Destructure and export necessary functions
 export const {
     add,
     sprite,
@@ -44,7 +51,10 @@ export const {
     go,
     rand,
     lifespan,
-    dt, // Added 'dt' to exports
+    dt,
+    time,
+    rgb,
+    wait,
 } = k;
 
 // Shared game state object
@@ -54,4 +64,5 @@ export const context = {
     devilSpawnTimer: null,
     devilPermanentlyDead: false,
     explosionDuration: 0.5,
+    darkMusic: null,
 };

@@ -1,10 +1,10 @@
 // src/js/entities/Player.js
 
 import {
-    add, sprite, pos, area, destroy, center, z, text, color, fixed, lifespan
+    add, sprite, area, body, move, destroy, pos, scale, z, play, width, height, center, text, color, fixed, lifespan
 } from "../context.js";
 import { PLAYER_SPEED, PLAYER_WIDTH, PLAYER_HEIGHT, mapWidth, mapHeight } from "../config/constants.js";
-import { context } from "../context.js";  // Optional: if you want to attach player to global context
+import { context } from "../context.js";  // For player reference
 
 const PIXELS_PER_MILE = 960; // 1 mile = 960 pixels
 const VIBE_MILE_INCREMENT = 0.5; // 1 vibe per 0.5 miles

@@ -1,11 +1,11 @@
-// src/js/entities/SpecialItem.js
+// src/js/entities/items/SpecialItem.js
 
 import {
-    add, text as addText, pos, anchor, color, fixed, z, lifespan, time, wait, center, height
+    add, sprite, area, body, move, destroy, pos, scale, z, play, loadSprite, width, height, rand, text as addText, anchor, color, fixed, lifespan, time, wait, center
 } from "../../context.js";
 import { BaseItem } from "./BaseItem.js";
 import { EDIBLE_DURATION, SUN_DURATION } from "../../config/constants.js";
-import { context } from "../../context.js"; // (Optional if needed later)
+import { context } from "../../context.js";
 
 export class SpecialItem extends BaseItem {
     constructor(config) {
@@ -56,3 +56,14 @@ export class SpecialItem extends BaseItem {
     }
 
     showMessage(message, colorValue) {
+        add([
+            addText(message, { size: 24 }),
+            pos(center().x, height() - 100),
+            anchor("center"),
+            color(colorValue[0], colorValue[1], colorValue[2]),
+            fixed(),
+            z(101),
+            lifespan(2),
+        ]);
+    }
+}

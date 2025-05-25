@@ -1,11 +1,11 @@
-// src/js/entities/TransportationItem.js
+// src/js/entities/items/TransportationItem.js
 
 import {
     add, text as addText, pos, anchor, color, fixed, z, lifespan, time, center, height, onUpdate, offUpdate, destroy
 } from "../../context.js";
 import { BaseItem } from "./BaseItem.js";
 import { PLAYER_SPEED, mapWidth, mapHeight } from "../../config/constants.js";
-import { context } from "../../context.js"; // Important!
+import { context } from "../../context.js";  // For devil and music control
 
 export class TransportationItem extends BaseItem {
     constructor(config) {

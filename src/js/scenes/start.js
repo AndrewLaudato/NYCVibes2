@@ -1,47 +1,45 @@
 // src/js/scenes/start.js
 
 import {
-    add, sprite, pos, anchor, scale, fixed, z, width, height, center, onMousePress, onKeyPress, go
+    add, sprite, text, pos, scale, onKeyPress, onMousePress, go, width, height, center
 } from "../context.js";
+import { MUSIC_ENABLED } from "../config/constants.js";
 
-export function createStartScene() {
-    return () => {
-        let startScreen;
-        let cleanupFunctions = [];
+export function startScene() {
+    // Add background
+    add([
+        sprite("start_screen"),
+        pos(0, 0),
+        scale(1),
+    ]);
 
-        // Create start screen background, centered and scaled
-        startScreen = add([
-            sprite("start", { width: width(), height: height() }),
-            pos(center()),
-            anchor("center"),
-            scale(Math.min(width() / 1024, height() / 768)), // Scale to fit screen
-            fixed(),
-            z(0),
-        ]);
+    // Add title
+    add([
+        text("NYC Vibes", { size: 64, font: "Arial" }),
+        pos(width() / 2, height() / 3),
+        center(),
+    ]);
 
-        // Mouse click handler -> start game
-        const clickHandler = onMousePress(() => {
-            go("city");
-        });
-        cleanupFunctions.push(() => clickHandler.cancel());
+    // Add start text
+    add([
+        text("Press SPACE or Click to Start", { size: 32, font: "Arial" }),
+        pos(width() / 2, height() * 2 / 3),
+        center(),
+    ]);
 
-        // Spacebar key handler -> start game
-        const keyHandler = onKeyPress("space", () => {
-            go("city");
-        });
-        cleanupFunctions.push(() => keyHandler.cancel());
+    // Add music status
+    add([
+        text(`Music: ${MUSIC_ENABLED ? "ON" : "OFF"}`, { size: 24, font: "Arial" }),
+        pos(width() / 2, height() * 3 / 4),
+        center(),
+    ]);
 
-        // Return cleanup function
-        return {
-            cleanup() {
-                cleanupFunctions.forEach((fn) => fn());
-                cleanupFunctions = [];
+    // Start game on space or click
+    onKeyPress("space", () => {
+        go("game");
+    });
 
-                if (startScreen) {
-                    startScreen.destroy();
-                    startScreen = null;
-                }
-            }
-        };
-    };
+    onMousePress(() => {
+        go("game");
+    });
 }

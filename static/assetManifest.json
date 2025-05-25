@@ -1,0 +1,36 @@
+{
+  "sprites": {
+    "map": "static/NYCmap.jpg",
+    "background": "static/NYCmap.jpg",
+    "player": "static/KJK.png",
+    "devil": "static/devil.png",
+    "explosion": "static/explosion.png",
+    "coffee": "static/coffee.png",
+    "dog": "static/dog.png",
+    "poop": "static/poop.png",
+    "pizza": "static/pizza.png",
+    "pretzel": "static/pretzel.png",
+    "bagels": "static/bagels.png",
+    "museum": "static/museum.png",
+    "tourist": "static/tourist.png",
+    "edible": "static/edible.png",
+    "sun": "static/sun.png",
+    "construction": "static/construction.png",
+    "rain": "static/rain.png",
+    "taxi": "static/taxi.png",
+    "subway": "static/subway.png",
+    "grenade": "static/grenade.png",
+    "win_screen": "static/win_screen.jpg",
+    "lose_screen": "static/lose_screen.jpg",
+    "start_screen": "static/start_screen.jpg",
+    "homeless": "static/homeless.png"
+  },
+  "sounds": {
+    "background_music": "static/bg_music.mp3",
+    "devil_music": "static/dark.mp3",
+    "boom": "static/boom.wav",
+    "game_over": "static/boo.mp3",
+    "positive": "static/positive.wav",
+    "negative": "static/negative.wav"
+  }
+} 

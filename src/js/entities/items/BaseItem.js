@@ -1,7 +1,7 @@
 // src/js/entities/BaseItem.js
 
 import {
-    add, sprite, pos, area, rgb, scale, opacity, z, destroy, play, wait
+    add, sprite, pos, area, rgb, scale, z, destroy, play, wait
 } from "../../context.js";
 import { mapWidth, mapHeight, DOG_POOP_TIMER } from "../../config/constants.js";
 import { ITEM_MESSAGES } from "../../config/messages.js";

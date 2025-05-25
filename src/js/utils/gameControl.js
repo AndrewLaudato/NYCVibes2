@@ -4,10 +4,11 @@ import {
     play, time
 } from "../context.js";
 import {
-    INITIAL_VIBES, WIN_VIBES, LOSE_VIBES, EDIBLE_DURATION, SUN_DURATION, DEVIL_MIN_INTERVAL
+    INITIAL_VIBES, WIN_VIBES, LOSE_VIBES, EDIBLE_DURATION, SUN_DURATION, DEVIL_MIN_INTERVAL,
+    MUSIC_ENABLED
 } from "../config/constants.js";
 
-export class Gamestate {
+export class GameState {
     constructor() {
         this.reset();
     }
@@ -105,11 +106,15 @@ export class Gamestate {
 // --- Sound control helpers ---
 
 export function playBackgroundMusic() {
-    play("background", { loop: true });
+    if (MUSIC_ENABLED) {
+        play("background", { loop: true });
+    }
 }
 
 export function playDarkMusic() {
-    play("dark", { loop: true });
+    if (MUSIC_ENABLED) {
+        play("dark", { loop: true });
+    }
 }
 
 export function playPositiveSound() {
