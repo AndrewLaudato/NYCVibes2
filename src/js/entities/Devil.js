@@ -1,7 +1,7 @@
 // src/js/entities/Devil.js
 
 import { add, sprite, area, body, move, destroy, pos, scale, z, play, loadSprite, width, height, rand, wait } from "../context.js";
-import { DEVIL_SPAWN_CHANCE, DEVIL_INITIAL_DELAY, MUSIC_ENABLED, PLAYER_WIDTH, PLAYER_HEIGHT } from "../config/constants.js";
+import { DEVIL_SPAWN_CHANCE, DEVIL_INITIAL_DELAY, MUSIC_ENABLED, PLAYER_WIDTH, PLAYER_HEIGHT, mapWidth, mapHeight } from "../config/constants.js";
 
 let explosionSpriteLoaded = false;
 
@@ -23,14 +23,18 @@ export class Devil {
     spawn(playerSprite) {
         if (this.sprite) return;
 
+        console.log("Attempting to spawn devil...");
+        
         this.sprite = add([
             sprite("devil", { width: PLAYER_WIDTH, height: PLAYER_HEIGHT }),
-            pos(rand(0, width()), rand(0, height())),
+            pos(rand(0, mapWidth), rand(0, mapHeight)),
             area(),
             body(),
             "devil",
             z(10),
         ]);
+
+        console.log("Devil spawned at:", this.sprite.pos);
 
         if (MUSIC_ENABLED) {
             this.darkMusic = play("dark", { loop: true });
