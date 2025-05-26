@@ -48,4 +48,6 @@ export const EDIBLE_COLORS = [            // Colors for edible effect
     [100, 255, 100], // Green tint
     [100, 100, 255], // Blue tint
     [255, 100, 255], // Purple tint
-]; 
+];
+
+export const TRANSPORT_SPEED_MULTIPLIER = 3; 

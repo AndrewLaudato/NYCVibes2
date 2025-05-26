@@ -23,8 +23,8 @@ fetch("static/assetManifest.json")
     // Define scenes
     scene("start", startScene);
     scene("game", gameScene);
-    scene("win", createEndScene(true));
-    scene("lose", createEndScene(false));
+    scene("win", () => createEndScene()(true));
+    scene("lose", () => createEndScene()(false));
     // Start with the start scene
     go("start");
   })

@@ -1,27 +1,40 @@
 // src/js/scenes/end.js
 
-import { add, sprite, pos, fixed, z, width, height, center, destroy, go, onMousePress } from "../context.js";
+import { add, sprite, pos, fixed, z, width, height, center, destroy, go, onMousePress, anchor, text, color } from "../context.js";
+import { GameState } from "../utils/gameControl.js";
 
 export function createEndScene() {
     return (isWin) => {
-        // End screen background
-        const endScreen = add([
+        // Centered end screen image
+        const img = add([
             sprite(isWin ? "win_screen" : "lose_screen"),
-            pos(0, 0),
-            fixed(),
-            z(0),
+            pos(width() / 2, height() / 2 - 100),
+            anchor("center"),
+            z(10),
         ]);
 
-        // Restart game on click
-        const unbind = onMousePress(() => {
+        // Centered Play Again button
+        const playAgainBtn = add([
+            text("Play Again", { size: 36, font: "Arial" }),
+            pos(width() / 2, height() / 2 + 180),
+            anchor("center"),
+            color(30, 80, 150),
+            z(20),
+            "playAgainBtn"
+        ]);
+
+        // Make button clickable
+        playAgainBtn.onMousePress(() => {
+            // Reset game state by creating a new instance
+            window.gameState = new GameState();
             go("start");
         });
 
         // Return cleanup function
         return {
             cleanup() {
-                destroy(endScreen);
-                unbind(); // Cleanly remove mouse listener
+                destroy(img);
+                destroy(playAgainBtn);
             }
         };
     };
