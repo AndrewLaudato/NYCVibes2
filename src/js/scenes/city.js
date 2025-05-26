@@ -123,17 +123,29 @@ export function createMainScene() {
         function animateTo(sprite, targetPos, speed, callback) {
             let done = false;
             const update = (dt) => {
-                if (!sprite.exists() || done) return;
-                const dist = targetPos.sub(sprite.pos).len();
-                if (dist < speed * dt) {
-                    sprite.pos = targetPos;
+                if (!sprite.exists()) {
                     if (!done) {
                         done = true;
+                        console.log("animateTo: sprite destroyed before reaching target, calling callback");
                         callback && callback();
-                        offUpdate(update);
                     }
+                    return;
+                }
+                if (done) {
+                    console.log("animateTo: done");
+                    return;
+                }
+                const direction = targetPos.sub(sprite.pos).unit();
+                const dist = targetPos.sub(sprite.pos).len();
+                console.log("animateTo: update", { pos: sprite.pos, target: targetPos, dist });
+                if (dist < speed * dt) {
+                    sprite.pos = targetPos;
+                    done = true;
+                    console.log("animateTo: reached target, calling callback");
+                    callback && callback();
+                    offUpdate(update);
                 } else {
-                    sprite.move(targetPos.sub(sprite.pos).unit().scale(speed));
+                    sprite.move(direction.x * speed * dt, direction.y * speed * dt);
                 }
             };
             onUpdate(update);
@@ -298,6 +310,7 @@ export function createMainScene() {
 
         playerSprite.onCollide("subway", (subwaySprite) => {
             if (transportInProgress) return;
+            console.log("Subway collision detected");
             transportInProgress = true;
             let targetY;
             if (playerSprite.pos.y > mapHeight / 2) {
@@ -315,13 +328,28 @@ export function createMainScene() {
             if (gameState.devil && gameState.devil.sprite) {
                 gameState.devil.destroy(true);
             }
-            function finish() {
-                destroy(subwaySprite);
+            let finished = false;
+            function finish(source) {
+                if (finished) return;
+                finished = true;
+                if (subwaySprite.exists && subwaySprite.exists()) {
+                    destroy(subwaySprite);
+                }
                 playerSprite.pos = playerTarget;
                 playerSprite.hidden = false;
+                camPos(playerSprite.pos);
                 transportInProgress = false;
+                console.log("Subway transport finished: player restored and camera recentered", source);
             }
-            animateTo(subwaySprite, subwayTarget, transportSpeed, finish);
+            console.log("Subway animation starting");
+            animateTo(subwaySprite, subwayTarget, transportSpeed, () => finish("animation"));
+            // Safety: if subway is destroyed early, still call finish
+            if (subwaySprite.onDestroy) {
+                subwaySprite.onDestroy(() => {
+                    console.log("Subway onDestroy triggered");
+                    finish("onDestroy");
+                });
+            }
         });
 
         playerSprite.onCollide("taxi", (taxiSprite) => {
@@ -343,13 +371,22 @@ export function createMainScene() {
             if (gameState.devil && gameState.devil.sprite) {
                 gameState.devil.destroy(true);
             }
+            let finished = false;
             function finish() {
-                destroy(taxiSprite);
+                if (finished) return;
+                finished = true;
+                if (taxiSprite.exists && taxiSprite.exists()) {
+                    destroy(taxiSprite);
+                }
                 playerSprite.pos = playerTarget;
                 playerSprite.hidden = false;
+                camPos(playerSprite.pos);
                 transportInProgress = false;
+                console.log("Taxi transport finished: player restored and camera recentered");
             }
             animateTo(taxiSprite, taxiTarget, transportSpeed, finish);
+            // Safety: if taxi is destroyed early, still call finish
+            taxiSprite.onDestroy && taxiSprite.onDestroy(finish);
         });
 
         // Camera follows player
@@ -387,8 +424,6 @@ export function createMainScene() {
 
             if (canSpawnDevil && gameState.canSpawnDevil()) {
                 gameState.devil = new Devil(gameState, backgroundMusic);
-            }
-            if (gameState.devil && !gameState.devil.sprite) {
                 gameState.devil.spawn(playerSprite);
             }
             if (gameState.devil && gameState.devil.sprite) {
