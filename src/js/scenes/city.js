@@ -24,6 +24,7 @@ import {
     time,
     go,
     k,
+    onKeyPress,
 } from '../context.js';
 
 import {
@@ -60,14 +61,37 @@ export function createMainScene() {
         const gameState = new GameState();
         gameState.vibes = INITIAL_VIBES;
         
-        let backgroundMusic = null;
-        // Only play background music if enabled
-        if (MUSIC_ENABLED) {
-            backgroundMusic = play("background", {
-                volume: 0.5,
-                loop: true,
-            });
+        // Music toggle with M key
+        let musicEnabled = false;
+        if (typeof window !== 'undefined' && window.localStorage) {
+            const stored = window.localStorage.getItem("musicEnabled");
+            if (stored !== null) musicEnabled = stored === "true";
         }
+        let backgroundMusic = null;
+        function updateMusic() {
+            try {
+                if (musicEnabled) {
+                    if (!backgroundMusic) {
+                        backgroundMusic = play("background", { volume: 0.5, loop: true });
+                    }
+                } else {
+                    if (backgroundMusic) {
+                        backgroundMusic.stop();
+                        backgroundMusic = null;
+                    }
+                }
+            } catch (e) {
+                console.error("Music play/stop error", e);
+            }
+        }
+        onKeyPress("m", () => {
+            musicEnabled = !musicEnabled;
+            if (typeof window !== 'undefined' && window.localStorage) {
+                window.localStorage.setItem("musicEnabled", musicEnabled);
+            }
+            updateMusic();
+        });
+        updateMusic();
         
         const player = new Player(gameState);
         let gameStartTime = time();
@@ -213,7 +237,18 @@ export function createMainScene() {
 
         playerSprite.onCollide("devil", () => {
             if (gameState.devil) {
-                gameState.devil.handleCollision(playerSprite);
+                // If player has grenade, destroy devil permanently and remove grenade
+                if (gameState.inventory.includes("grenade")) {
+                    if (gameState.devil.sprite && gameState.devil.sprite.exists()) {
+                        play("boom");
+                        gameState.devil.triggerExplosion(gameState.devil.sprite.pos);
+                        gameState.devil.destroy(true);
+                        gameState.inventory = gameState.inventory.filter(item => item !== "grenade");
+                    }
+                } else {
+                    // Just handle collision without explosion
+                    gameState.devil.handleCollision(playerSprite);
+                }
             }
         });
 
@@ -241,6 +276,13 @@ export function createMainScene() {
             player.update();
 
             vibesLabel.text = `Vibes: ${gameState.vibes}`;
+            if (gameState.vibes >= WIN_VIBES - 10) {
+                vibesLabel.color = rgb(0, 200, 0); // green
+            } else if (gameState.vibes <= LOSE_VIBES + 10) {
+                vibesLabel.color = rgb(200, 0, 0); // red
+            } else {
+                vibesLabel.color = rgb(...UI_TEXT_COLOR); // default
+            }
             const miles = player.getDistanceWalked();
             milesLabel.text = `Miles: ${miles.toFixed(1)}`;
             const elapsed = time() - gameStartTime;

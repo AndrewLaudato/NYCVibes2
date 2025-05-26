@@ -1,45 +1,60 @@
 // src/js/scenes/start.js
 
 import {
-    add, sprite, text, pos, scale, onKeyPress, onMousePress, go, width, height, center
+    add, sprite, text, pos, scale, onKeyPress, onMousePress, go, width, height, center, color, z, rect, anchor, rgb
 } from "../context.js";
 import { MUSIC_ENABLED } from "../config/constants.js";
 
 export function startScene() {
-    // Add background
+    // Panel dimensions
+    const panelWidth = 800;
+    const panelHeight = 420;
+    const panelX = width() / 2 - panelWidth / 2;  // Center the panel horizontally
+    const panelY = height() / 2 - panelHeight / 2; // Center the panel vertically
+
+    // White panel for text and controls
     add([
-        sprite("start_screen"),
-        pos(0, 0),
-        scale(1),
+        rect(panelWidth, panelHeight, { radius: 24 }),
+        pos(panelX, panelY),
+        color(255, 255, 255),
+        z(10),
     ]);
 
-    // Add title
+    // Game title
     add([
-        text("NYC Vibes", { size: 64, font: "Arial" }),
-        pos(width() / 2, height() / 3),
-        center(),
+        text("NYC Vibe Quest", { size: 48, font: "Arial" }),
+        pos(panelX + panelWidth / 2, panelY + 40),
+        anchor("center"),
+        color(30, 80, 150),
+        z(11),
     ]);
 
-    // Add start text
+    // Instructions
     add([
-        text("Press SPACE or Click to Start", { size: 32, font: "Arial" }),
-        pos(width() / 2, height() * 2 / 3),
-        center(),
+        text("Use the arrow keys to move\nCollect 50 Vibes to win, but watch out!\nPress M at any time to toggle music ON/OFF. Music starts OFF.", { size: 28, font: "Arial" }),
+        pos(panelX + panelWidth / 2, panelY + 110),
+        anchor("center"),
+        color(0, 0, 0),
+        z(11),
     ]);
 
-    // Add music status
-    add([
-        text(`Music: ${MUSIC_ENABLED ? "ON" : "OFF"}`, { size: 24, font: "Arial" }),
-        pos(width() / 2, height() * 3 / 4),
-        center(),
+    // Play button (centered at bottom of panel, with extra gap)
+    const playBtn = add([
+        text("Play", { size: 48, font: "Arial" }),
+        pos(panelX + panelWidth / 2, panelY + panelHeight - 40),
+        anchor("center"),
+        color(30, 80, 150),
+        z(30),
+        "playBtn"
     ]);
-
-    // Start game on space or click
-    onKeyPress("space", () => {
+    playBtn.onMousePress(() => {
         go("game");
     });
 
-    onMousePress(() => {
-        go("game");
-    });
+    // Player image on the right (move left and reduce size)
+    add([
+        sprite("player", { width: 220, height: 220 }),
+        pos(panelX + panelWidth - 140, panelY + 40),
+        z(10),
+    ]);
 }
