@@ -31,7 +31,7 @@ export function startScene() {
 
     // Instructions
     add([
-        text("Use the arrow keys to move\nCollect 50 Vibes to win, but watch out!\nPress M at any time to toggle music ON/OFF. Music starts OFF.", { size: 28, font: "Arial" }),
+        text("Use the arrow keys to move\nCollect 50 Vibes to win\nAvoid the devil and negative items!\nPress M to toggle music ON/OFF.", { size: 28, font: "Arial" }),
         pos(panelX + panelWidth / 2, panelY + 110),
         anchor("center"),
         color(0, 0, 0),
