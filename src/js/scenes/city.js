@@ -72,7 +72,7 @@ export function createMainScene() {
             try {
                 if (musicEnabled) {
                     if (!backgroundMusic) {
-                        backgroundMusic = play("background", { volume: 0.5, loop: true });
+                        backgroundMusic = play("background_music", { volume: 0.5, loop: true });
                     }
                 } else {
                     if (backgroundMusic) {
@@ -299,7 +299,7 @@ export function createMainScene() {
                 canSpawnGrenade = true;
             }
 
-            if (canSpawnDevil && !gameState.devil) {
+            if (canSpawnDevil && gameState.canSpawnDevil()) {
                 gameState.devil = new Devil(gameState, backgroundMusic);
             }
             if (gameState.devil && !gameState.devil.sprite) {
@@ -324,13 +324,27 @@ export function createMainScene() {
             }
 
             if (gameState.edibleEffectActive) {
-                const colors = EDIBLE_COLORS;
-                const color = colors[Math.floor(time() * 10) % colors.length];
+                // Psychedelic effect: rapidly shifting rainbow overlay with wavy alpha
+                const t = time();
+                const hue = (t * 120) % 360; // cycle hue quickly
+                const sat = 100;
+                const light = 50 + 20 * Math.sin(t * 2); // pulsate lightness
+                const alpha = 0.25 + 0.15 * Math.sin(t * 4); // wavy alpha
+                // Kaboom doesn't support hsl directly, so convert to rgb
+                function hslToRgb(h, s, l) {
+                    s /= 100;
+                    l /= 100;
+                    const k = n => (n + h / 30) % 12;
+                    const a = s * Math.min(l, 1 - l);
+                    const f = n => l - a * Math.max(-1, Math.min(Math.min(k(n) - 3, 9 - k(n)), 1));
+                    return [Math.round(255 * f(0)), Math.round(255 * f(8)), Math.round(255 * f(4))];
+                }
+                const [r, g, b] = hslToRgb(hue, sat, light);
                 add([
                     rect(width(), height()),
                     pos(0, 0),
-                    rgb(...color),
-                    k.opacity(0.3),
+                    rgb(r, g, b),
+                    k.opacity(alpha),
                     fixed(),
                     z(98),
                     lifespan(0.1),
