@@ -46,7 +46,8 @@ import {
     EDIBLE_COLORS,
     INITIAL_VIBES,
     GRENADE_FIRST_SPAWN_DELAY,
-    MUSIC_ENABLED
+    MUSIC_ENABLED,
+    TRANSPORT_SPEED_MULTIPLIER
 } from '../config/constants.js';
 
 import { GameState } from '../utils/gameControl.js';
@@ -62,10 +63,15 @@ export function createMainScene() {
         gameState.vibes = INITIAL_VIBES;
         
         // Music toggle with M key
-        let musicEnabled = false;
+        let musicEnabled = true;
         if (typeof window !== 'undefined' && window.localStorage) {
             const stored = window.localStorage.getItem("musicEnabled");
-            if (stored !== null) musicEnabled = stored === "true";
+            if (stored === null) {
+                window.localStorage.setItem("musicEnabled", "true");
+                musicEnabled = true;
+            } else {
+                musicEnabled = stored === "true";
+            }
         }
         let backgroundMusic = null;
         function updateMusic() {
@@ -97,6 +103,40 @@ export function createMainScene() {
         let gameStartTime = time();
         let canSpawnDevil = false;
         let canSpawnGrenade = false;
+        let transportInProgress = false;
+        let transportTarget = null;
+        let transportSprite = null;
+        let transportDirection = null;
+        let transportSpeed = PLAYER_SPEED * TRANSPORT_SPEED_MULTIPLIER;
+        let transportCallback = null;
+
+        function startTransport(targetPos, spriteToMove, callback) {
+            transportInProgress = true;
+            transportTarget = targetPos;
+            transportSprite = spriteToMove;
+            transportDirection = targetPos.sub(spriteToMove.pos).unit();
+            transportCallback = callback;
+        }
+
+        // Helper to animate a sprite to a target position at a given speed, then call callback
+        function animateTo(sprite, targetPos, speed, callback) {
+            let done = false;
+            const update = (dt) => {
+                if (!sprite.exists() || done) return;
+                const dist = targetPos.sub(sprite.pos).len();
+                if (dist < speed * dt) {
+                    sprite.pos = targetPos;
+                    if (!done) {
+                        done = true;
+                        callback && callback();
+                        offUpdate(update);
+                    }
+                } else {
+                    sprite.move(targetPos.sub(sprite.pos).unit().scale(speed));
+                }
+            };
+            onUpdate(update);
+        }
 
         // Map background
         add([
@@ -163,22 +203,22 @@ export function createMainScene() {
 
         // Player movement
         onKeyDown("left", () => {
-            if (playerSprite && playerSprite.exists() && !playerSprite.is("enemy")) {
+            if (playerSprite && playerSprite.exists() && !playerSprite.is("enemy") && !transportInProgress) {
                 playerSprite.move(-PLAYER_SPEED, 0);
             }
         });
         onKeyDown("right", () => {
-            if (playerSprite && playerSprite.exists() && !playerSprite.is("enemy")) {
+            if (playerSprite && playerSprite.exists() && !playerSprite.is("enemy") && !transportInProgress) {
                 playerSprite.move(PLAYER_SPEED, 0);
             }
         });
         onKeyDown("up", () => {
-            if (playerSprite && playerSprite.exists() && !playerSprite.is("enemy")) {
+            if (playerSprite && playerSprite.exists() && !playerSprite.is("enemy") && !transportInProgress) {
                 playerSprite.move(0, -PLAYER_SPEED);
             }
         });
         onKeyDown("down", () => {
-            if (playerSprite && playerSprite.exists() && !playerSprite.is("enemy")) {
+            if (playerSprite && playerSprite.exists() && !playerSprite.is("enemy") && !transportInProgress) {
                 playerSprite.move(0, PLAYER_SPEED);
             }
         });
@@ -252,18 +292,54 @@ export function createMainScene() {
             }
         });
 
-        playerSprite.onCollide("subway", () => {
-            if (gameState.devil && gameState.devil.sprite && gameState.devil.sprite.exists()) {
-                gameState.devil.destroy(false);
-                play("positive");
+        playerSprite.onCollide("subway", (subwaySprite) => {
+            if (transportInProgress) return;
+            transportInProgress = true;
+            let targetY;
+            if (playerSprite.pos.y > mapHeight / 2) {
+                targetY = mapHeight * 0.25;
+            } else {
+                targetY = mapHeight * 0.75;
             }
+            const playerTarget = playerSprite.pos.clone();
+            playerTarget.y = targetY;
+            const subwayTarget = subwaySprite.pos.clone();
+            subwayTarget.y = targetY;
+            let finished = 0;
+            function finish() {
+                finished++;
+                if (finished === 2) {
+                    destroy(subwaySprite);
+                    transportInProgress = false;
+                }
+            }
+            animateTo(playerSprite, playerTarget, transportSpeed, finish);
+            animateTo(subwaySprite, subwayTarget, transportSpeed, finish);
         });
 
-        playerSprite.onCollide("taxi", () => {
-            if (gameState.devil && gameState.devil.sprite && gameState.devil.sprite.exists()) {
-                gameState.devil.destroy(false);
-                play("positive");
+        playerSprite.onCollide("taxi", (taxiSprite) => {
+            if (transportInProgress) return;
+            transportInProgress = true;
+            let targetX;
+            if (playerSprite.pos.x > mapWidth / 2) {
+                targetX = mapWidth * 0.25;
+            } else {
+                targetX = mapWidth * 0.75;
             }
+            const playerTarget = playerSprite.pos.clone();
+            playerTarget.x = targetX;
+            const taxiTarget = taxiSprite.pos.clone();
+            taxiTarget.x = targetX;
+            let finished = 0;
+            function finish() {
+                finished++;
+                if (finished === 2) {
+                    destroy(taxiSprite);
+                    transportInProgress = false;
+                }
+            }
+            animateTo(playerSprite, playerTarget, transportSpeed, finish);
+            animateTo(taxiSprite, taxiTarget, transportSpeed, finish);
         });
 
         // Camera follows player
