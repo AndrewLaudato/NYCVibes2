@@ -109,6 +109,7 @@ export function createMainScene() {
         let transportDirection = null;
         let transportSpeed = PLAYER_SPEED * TRANSPORT_SPEED_MULTIPLIER;
         let transportCallback = null;
+        let grenadeSpawned = false;
 
         function startTransport(targetPos, spriteToMove, callback) {
             transportInProgress = true;
@@ -248,7 +249,7 @@ export function createMainScene() {
                 "construction", "rain", "taxi", "subway"
             ];
 
-            if (canSpawnGrenade) {
+            if (canSpawnGrenade && !grenadeSpawned) {
                 itemTypes.push("grenade");
             }
 
@@ -257,6 +258,9 @@ export function createMainScene() {
             const y = Math.random() * (mapHeight - ITEM_HEIGHT);
             const item = new BaseItem(itemType, gameState, player);
             item.spawnAt(x, y);
+            if (itemType === "grenade") {
+                grenadeSpawned = true;
+            }
         };
 
         // Spawn initial items
@@ -305,15 +309,18 @@ export function createMainScene() {
             playerTarget.y = targetY;
             const subwayTarget = subwaySprite.pos.clone();
             subwayTarget.y = targetY;
-            let finished = 0;
-            function finish() {
-                finished++;
-                if (finished === 2) {
-                    destroy(subwaySprite);
-                    transportInProgress = false;
-                }
+            // Hide player during transport
+            playerSprite.hidden = true;
+            // Destroy devil if present
+            if (gameState.devil && gameState.devil.sprite) {
+                gameState.devil.destroy(true);
             }
-            animateTo(playerSprite, playerTarget, transportSpeed, finish);
+            function finish() {
+                destroy(subwaySprite);
+                playerSprite.pos = playerTarget;
+                playerSprite.hidden = false;
+                transportInProgress = false;
+            }
             animateTo(subwaySprite, subwayTarget, transportSpeed, finish);
         });
 
@@ -330,15 +337,18 @@ export function createMainScene() {
             playerTarget.x = targetX;
             const taxiTarget = taxiSprite.pos.clone();
             taxiTarget.x = targetX;
-            let finished = 0;
-            function finish() {
-                finished++;
-                if (finished === 2) {
-                    destroy(taxiSprite);
-                    transportInProgress = false;
-                }
+            // Hide player during transport
+            playerSprite.hidden = true;
+            // Destroy devil if present
+            if (gameState.devil && gameState.devil.sprite) {
+                gameState.devil.destroy(true);
             }
-            animateTo(playerSprite, playerTarget, transportSpeed, finish);
+            function finish() {
+                destroy(taxiSprite);
+                playerSprite.pos = playerTarget;
+                playerSprite.hidden = false;
+                transportInProgress = false;
+            }
             animateTo(taxiSprite, taxiTarget, transportSpeed, finish);
         });
 
